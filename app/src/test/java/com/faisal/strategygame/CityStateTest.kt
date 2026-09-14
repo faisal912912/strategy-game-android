@@ -1,12 +1,17 @@
 package com.faisal.strategygame
 
-import com.faisal.strategygame.model.CityState
+import com.faisal.strategygame.model.GameState
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
-class CityStateTest {
+class GameStateTest {
     @Test
-    fun initialCityHasFourBuildings() {
-        assertEquals(4, CityState().buildings.size)
+    fun betaStartsWithPlayableContent() {
+        val state = GameState()
+        assertEquals(6, state.buildings.size)
+        assertEquals(3, state.commanders.size)
+        assertEquals(3, state.missions.size)
+        assertTrue(state.resources.food > 0)
     }
 }
