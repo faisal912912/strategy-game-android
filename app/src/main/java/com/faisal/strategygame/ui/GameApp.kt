@@ -1,5 +1,11 @@
 package com.faisal.strategygame.ui
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
@@ -58,7 +64,7 @@ private fun LoginScreen(vm: GameViewModel) {
                 Modifier.padding(20.dp).fillMaxWidth(),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                Text("♛", style = MaterialTheme.typography.displayMedium, color = MaterialTheme.colorScheme.primary)
+                AnimatedCrown()
                 Text("KINGDOM FRONTIER", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Black)
                 Text("BETA • SELECT KINGDOM", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.height(14.dp))
@@ -165,12 +171,22 @@ private fun KingdomScreen(vm: GameViewModel) {
                 .background(Brush.verticalGradient(listOf(Color(0xFF304B32), Color(0xFF101812))))
                 .padding(padding)
         ) {
-            when (tab) {
-                GameTab.CITY -> CityScreen(vm)
-                GameTab.WORLD -> WorldScreen(vm)
-                GameTab.COMMANDERS -> CommandersScreen(vm.state)
-                GameTab.ALLIANCE -> AllianceScreen(vm)
-                GameTab.MORE -> MoreScreen(vm)
+            AnimatedKingdomBackdrop()
+            AnimatedContent(
+                targetState = tab,
+                transitionSpec = {
+                    (fadeIn() + scaleIn(initialScale = .97f)) togetherWith
+                        (fadeOut() + scaleOut(targetScale = 1.03f))
+                },
+                label = "kingdom_tab",
+            ) { current ->
+                when (current) {
+                    GameTab.CITY -> CityScreen(vm)
+                    GameTab.WORLD -> WorldScreen(vm)
+                    GameTab.COMMANDERS -> CommandersScreen(vm.state)
+                    GameTab.ALLIANCE -> AllianceScreen(vm)
+                    GameTab.MORE -> MoreScreen(vm)
+                }
             }
         }
     }
@@ -207,7 +223,11 @@ private fun KingdomHeader(state: GameState) {
 @Composable
 private fun MiniResource(icon: String, value: Long) {
     Surface(color = Color(0xFF26382A), shape = RoundedCornerShape(20.dp)) {
-        Text("$icon ${number(value)}", Modifier.padding(horizontal = 10.dp, vertical = 5.dp), style = MaterialTheme.typography.labelMedium)
+        Row(Modifier.padding(horizontal = 10.dp, vertical = 5.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text(icon)
+            Spacer(Modifier.width(4.dp))
+            AnimatedNumber(value)
+        }
     }
 }
 
@@ -296,7 +316,7 @@ private fun ActionQueueCard(action: GameAction, onSpeedUp: () -> Unit) {
 private fun BuildingCard(building: Building, onUpgrade: () -> Unit) {
     ElevatedCard(colors = CardDefaults.elevatedCardColors(containerColor = Color(0xEE19251C))) {
         Row(Modifier.fillMaxWidth().padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text(building.icon, style = MaterialTheme.typography.headlineMedium)
+            BouncyIcon(building.icon)
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
                 Text(building.name, fontWeight = FontWeight.Bold)
@@ -320,7 +340,7 @@ private fun WorldScreen(vm: GameViewModel) {
             Card(colors = CardDefaults.cardColors(containerColor = Color(0xFF26382A))) {
                 Box(Modifier.fillMaxWidth().height(180.dp), contentAlignment = Alignment.Center) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("🗺️", style = MaterialTheme.typography.displayLarge)
+                        FloatingWorldIcon()
                         Text("Kingdom #1 • Peaceful Zone")
                         Text("X: 412  Y: 687", color = MaterialTheme.colorScheme.secondary)
                     }
@@ -331,7 +351,7 @@ private fun WorldScreen(vm: GameViewModel) {
         items(vm.state.missions, key = { it.id }) { mission ->
             Card(colors = CardDefaults.cardColors(containerColor = Color(0xEE19251C))) {
                 Row(Modifier.fillMaxWidth().padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Icon(if (mission.completed) Icons.Default.CheckCircle else Icons.Default.Flag, null, tint = MaterialTheme.colorScheme.primary)
+                    PulsingMissionIcon(mission.completed)
                     Spacer(Modifier.width(12.dp))
                     Column(Modifier.weight(1f)) {
                         Text(mission.title, fontWeight = FontWeight.Bold)
