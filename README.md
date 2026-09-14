@@ -1,23 +1,25 @@
-# Kingdom Frontier — Android
+# Kingdom Frontier Beta — Android
 
-Starter Android client for the strategy game server.
+A portrait-mode Android beta client for the strategy game server.
 
-## Included
+## Beta features
 
-- Kotlin and Jetpack Compose
-- Landscape strategy-game city dashboard
-- Resources, buildings, navigation, and starter domain models
+- Governor onboarding and locally persisted profile
+- Portrait-first Jetpack Compose interface
+- City building upgrades with resource costs
+- Troop training and technology research
+- World map and playable campaign missions
+- Commander roster
+- Alliance dashboard and help actions
+- Inbox, quests, inventory, rankings, and settings entry points
+- Resource, troop, power, and progression state
 - Server health client prepared for `/api/v1/health`
-- Local emulator server URL: `http://10.0.2.2:8080/`
-- Unit test and GitHub Actions APK build
+- Automated tests and APK generation with GitHub Actions
 
-## Open and run
+## Run
 
-1. Clone the repository and open it in Android Studio.
-2. Let Gradle sync complete.
-3. Start the Go game server on port 8080.
-4. Run the app on an Android emulator (API 26 or newer).
+Open the repository in Android Studio, allow Gradle sync, and run on Android 8.0 (API 26) or newer.
 
-Change `SERVER_BASE_URL` in `app/build.gradle.kts` when testing on a physical phone or production server.
+The emulator server URL is `http://10.0.2.2:8080/`. Change `SERVER_BASE_URL` in `app/build.gradle.kts` for a physical phone or production host.
 
-The app name and package are temporary and can be changed before release.
+Current version: **Beta 0.9.0**. The game and package names remain temporary until release branding is selected.

@@ -1,7 +1,11 @@
 package com.faisal.strategygame.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -13,141 +17,379 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.faisal.strategygame.model.CityState
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.faisal.strategygame.GameViewModel
+import com.faisal.strategygame.model.*
 import java.text.NumberFormat
 
 private enum class GameTab(val label: String, val icon: ImageVector) {
     CITY("City", Icons.Default.Home),
     WORLD("World", Icons.Default.Public),
+    COMMANDERS("Heroes", Icons.Default.Shield),
     ALLIANCE("Alliance", Icons.Default.Groups),
-    COMMANDERS("Commanders", Icons.Default.Shield),
+    MORE("More", Icons.Default.Menu),
 }
 
 @Composable
-fun GameApp() {
+fun GameApp(vm: GameViewModel = viewModel()) {
+    val state = vm.state
+    if (state.governorName.isBlank()) {
+        LoginScreen(vm::login)
+    } else {
+        KingdomScreen(vm)
+    }
+}
+
+@Composable
+private fun LoginScreen(onLogin: (String) -> Unit) {
+    var name by remember { mutableStateOf("") }
+    Box(
+        Modifier.fillMaxSize().background(
+            Brush.verticalGradient(listOf(Color(0xFF263F2A), Color(0xFF0B130D)))
+        ).padding(24.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Card(colors = CardDefaults.cardColors(containerColor = Color(0xEE19251C))) {
+            Column(
+                Modifier.padding(24.dp).fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Text("♛", style = MaterialTheme.typography.displayLarge, color = MaterialTheme.colorScheme.primary)
+                Text("KINGDOM FRONTIER", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Black)
+                Text("BETA", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+                Spacer(Modifier.height(24.dp))
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it.take(18) },
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text("Governor name") },
+                    leadingIcon = { Icon(Icons.Default.Person, null) },
+                    singleLine = true,
+                )
+                Spacer(Modifier.height(14.dp))
+                Button(onClick = { onLogin(name) }, modifier = Modifier.fillMaxWidth()) {
+                    Text("ENTER KINGDOM")
+                }
+                Spacer(Modifier.height(10.dp))
+                Text("Server v10 ready • Local beta profile", style = MaterialTheme.typography.labelSmall)
+            }
+        }
+    }
+}
+
+@Composable
+private fun KingdomScreen(vm: GameViewModel) {
     var tab by remember { mutableStateOf(GameTab.CITY) }
-    val city = remember { CityState() }
+    val snackbar = remember { SnackbarHostState() }
+    val message = vm.toastMessage
+    LaunchedEffect(message) {
+        message?.let {
+            snackbar.showSnackbar(it)
+            vm.clearMessage()
+        }
+    }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbar) },
         containerColor = Color.Transparent,
+        topBar = { KingdomHeader(vm.state) },
         bottomBar = {
-            NavigationBar(containerColor = Color(0xEE101812)) {
+            NavigationBar(containerColor = Color(0xFF101812)) {
                 GameTab.entries.forEach {
                     NavigationBarItem(
                         selected = tab == it,
                         onClick = { tab = it },
                         icon = { Icon(it.icon, contentDescription = it.label) },
-                        label = { Text(it.label) },
+                        label = { Text(it.label, maxLines = 1) },
                     )
                 }
             }
         },
     ) { padding ->
         Box(
-            Modifier
-                .fillMaxSize()
-                .background(
-                    Brush.verticalGradient(listOf(Color(0xFF304B32), Color(0xFF101812)))
-                )
+            Modifier.fillMaxSize()
+                .background(Brush.verticalGradient(listOf(Color(0xFF304B32), Color(0xFF101812))))
                 .padding(padding)
         ) {
             when (tab) {
-                GameTab.CITY -> CityScreen(city)
-                else -> ComingSoon(tab.label)
+                GameTab.CITY -> CityScreen(vm)
+                GameTab.WORLD -> WorldScreen(vm)
+                GameTab.COMMANDERS -> CommandersScreen(vm.state)
+                GameTab.ALLIANCE -> AllianceScreen(vm)
+                GameTab.MORE -> MoreScreen(vm)
             }
         }
     }
 }
 
 @Composable
-private fun CityScreen(city: CityState) {
-    Column(Modifier.fillMaxSize().padding(16.dp)) {
-        Header(city)
-        Spacer(Modifier.height(14.dp))
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            ResourceChip("Food", city.resources.food, Icons.Default.Restaurant, Modifier.weight(1f))
-            ResourceChip("Wood", city.resources.wood, Icons.Default.Forest, Modifier.weight(1f))
-            ResourceChip("Stone", city.resources.stone, Icons.Default.Landscape, Modifier.weight(1f))
-            ResourceChip("Gold", city.resources.gold, Icons.Default.Paid, Modifier.weight(1f))
+private fun KingdomHeader(state: GameState) {
+    Column(Modifier.background(Color(0xFF101812)).statusBarsPadding().padding(horizontal = 12.dp, vertical = 8.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Surface(shape = RoundedCornerShape(10.dp), color = Color(0xFF26382A)) {
+                Icon(Icons.Default.Person, null, Modifier.padding(8.dp), tint = MaterialTheme.colorScheme.primary)
+            }
+            Spacer(Modifier.width(8.dp))
+            Column(Modifier.weight(1f)) {
+                Text(state.governorName, fontWeight = FontWeight.Bold)
+                Text("Power ${number(state.power)}", style = MaterialTheme.typography.labelSmall)
+            }
+            Text("VIP 1", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
         }
-        Spacer(Modifier.height(18.dp))
-        Text("Kingdom Buildings", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
         Spacer(Modifier.height(8.dp))
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            city.buildings.forEach { building ->
-                ElevatedCard(
-                    modifier = Modifier.weight(1f),
-                    colors = CardDefaults.elevatedCardColors(containerColor = Color(0xDD26382A)),
-                    shape = RoundedCornerShape(16.dp),
-                ) {
-                    Column(Modifier.padding(14.dp)) {
-                        Icon(Icons.Default.Castle, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                        Spacer(Modifier.height(10.dp))
-                        Text(building.name, fontWeight = FontWeight.Bold)
-                        Text("Level ${building.level}", style = MaterialTheme.typography.bodyMedium)
-                        Spacer(Modifier.height(6.dp))
-                        Text(building.status, color = MaterialTheme.colorScheme.secondary)
+        Row(
+            Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            MiniResource("🌾", state.resources.food)
+            MiniResource("🪵", state.resources.wood)
+            MiniResource("🪨", state.resources.stone)
+            MiniResource("🪙", state.resources.gold)
+            MiniResource("💎", state.resources.gems)
+        }
+    }
+}
+
+@Composable
+private fun MiniResource(icon: String, value: Long) {
+    Surface(color = Color(0xFF26382A), shape = RoundedCornerShape(20.dp)) {
+        Text("$icon ${number(value)}", Modifier.padding(horizontal = 10.dp, vertical = 5.dp), style = MaterialTheme.typography.labelMedium)
+    }
+}
+
+@Composable
+private fun CityScreen(vm: GameViewModel) {
+    val state = vm.state
+    LazyColumn(
+        Modifier.fillMaxSize().padding(horizontal = 12.dp),
+        contentPadding = PaddingValues(vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        item {
+            Card(colors = CardDefaults.cardColors(containerColor = Color(0xDD26382A))) {
+                Column(Modifier.padding(16.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("🏰", style = MaterialTheme.typography.displaySmall)
+                        Spacer(Modifier.width(12.dp))
+                        Column(Modifier.weight(1f)) {
+                            Text("Capital City", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                            Text("City Hall Level ${state.cityLevel}")
+                            Text("${number(state.troops.toLong())} troops ready", color = MaterialTheme.colorScheme.secondary)
+                        }
+                    }
+                    Spacer(Modifier.height(12.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Button(vm::trainTroops, Modifier.weight(1f)) {
+                            Icon(Icons.Default.Add, null)
+                            Text("Train")
+                        }
+                        OutlinedButton(vm::research, Modifier.weight(1f)) {
+                            Icon(Icons.Default.Science, null)
+                            Text("Research")
+                        }
                     }
                 }
             }
         }
-        Spacer(Modifier.weight(1f))
-        Text(
-            "Development build • Server: 10.0.2.2:8080",
-            style = MaterialTheme.typography.labelMedium,
-            color = Color.White.copy(alpha = .65f),
-        )
+        item { SectionTitle("Buildings", "Tap upgrade to grow your power") }
+        items(state.buildings, key = { it.id }) { building ->
+            BuildingCard(building) { vm.upgradeBuilding(building.id) }
+        }
     }
 }
 
 @Composable
-private fun Header(city: CityState) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Surface(shape = RoundedCornerShape(12.dp), color = Color(0xAA101812)) {
-            Icon(Icons.Default.Person, null, Modifier.padding(10.dp), tint = MaterialTheme.colorScheme.primary)
+private fun BuildingCard(building: Building, onUpgrade: () -> Unit) {
+    ElevatedCard(colors = CardDefaults.elevatedCardColors(containerColor = Color(0xEE19251C))) {
+        Row(Modifier.fillMaxWidth().padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text(building.icon, style = MaterialTheme.typography.headlineMedium)
+            Spacer(Modifier.width(12.dp))
+            Column(Modifier.weight(1f)) {
+                Text(building.name, fontWeight = FontWeight.Bold)
+                Text(building.description, style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text("Level ${building.level}", color = MaterialTheme.colorScheme.primary)
+            }
+            Button(onClick = onUpgrade) { Text("Upgrade") }
         }
-        Spacer(Modifier.width(10.dp))
-        Column {
-            Text(city.governorName, fontWeight = FontWeight.Bold)
-            Text("Power ${NumberFormat.getIntegerInstance().format(city.power)}")
-        }
-        Spacer(Modifier.weight(1f))
-        AssistChip(
-            onClick = {},
-            label = { Text("City Hall Lv. ${city.cityLevel}") },
-            leadingIcon = { Icon(Icons.Default.Castle, null) },
-        )
     }
 }
 
 @Composable
-private fun ResourceChip(
-    label: String,
-    amount: Long,
-    icon: ImageVector,
-    modifier: Modifier = Modifier,
-) {
-    Surface(modifier, color = Color(0xCC19251C), shape = RoundedCornerShape(14.dp)) {
-        Row(Modifier.padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
-            Icon(icon, null, tint = MaterialTheme.colorScheme.primary)
-            Spacer(Modifier.width(8.dp))
-            Column {
-                Text(label, style = MaterialTheme.typography.labelSmall)
-                Text(NumberFormat.getIntegerInstance().format(amount), fontWeight = FontWeight.Bold)
+private fun WorldScreen(vm: GameViewModel) {
+    LazyColumn(
+        Modifier.padding(horizontal = 12.dp),
+        contentPadding = PaddingValues(vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        item {
+            SectionTitle("World Map", "Explore, gather, and defeat enemies")
+            Card(colors = CardDefaults.cardColors(containerColor = Color(0xFF26382A))) {
+                Box(Modifier.fillMaxWidth().height(180.dp), contentAlignment = Alignment.Center) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text("🗺️", style = MaterialTheme.typography.displayLarge)
+                        Text("Kingdom #1 • Peaceful Zone")
+                        Text("X: 412  Y: 687", color = MaterialTheme.colorScheme.secondary)
+                    }
+                }
+            }
+        }
+        item { SectionTitle("Campaign Missions", "Complete battles to earn rewards") }
+        items(vm.state.missions, key = { it.id }) { mission ->
+            Card(colors = CardDefaults.cardColors(containerColor = Color(0xEE19251C))) {
+                Row(Modifier.fillMaxWidth().padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Icon(if (mission.completed) Icons.Default.CheckCircle else Icons.Default.Flag, null, tint = MaterialTheme.colorScheme.primary)
+                    Spacer(Modifier.width(12.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text(mission.title, fontWeight = FontWeight.Bold)
+                        Text("${mission.difficulty} • ${mission.reward}", style = MaterialTheme.typography.bodySmall)
+                    }
+                    FilledTonalButton(onClick = { vm.completeMission(mission.id) }, enabled = !mission.completed) {
+                        Text(if (mission.completed) "Done" else "Battle")
+                    }
+                }
             }
         }
     }
 }
 
 @Composable
-private fun ComingSoon(name: String) {
-    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Icon(Icons.Default.Construction, null, Modifier.size(54.dp), tint = MaterialTheme.colorScheme.primary)
-            Spacer(Modifier.height(12.dp))
-            Text(name, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-            Text("Ready for the next development phase")
+private fun CommandersScreen(state: GameState) {
+    LazyColumn(
+        Modifier.padding(horizontal = 12.dp),
+        contentPadding = PaddingValues(vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        item { SectionTitle("Commanders", "Build the strongest army") }
+        items(state.commanders, key = { it.id }) { commander ->
+            Card(colors = CardDefaults.cardColors(containerColor = Color(0xEE19251C))) {
+                Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Surface(shape = RoundedCornerShape(50), color = Color(0xFF26382A)) {
+                        Text("⚔️", Modifier.padding(14.dp), style = MaterialTheme.typography.headlineMedium)
+                    }
+                    Spacer(Modifier.width(14.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text(commander.name, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
+                        Text(commander.rarity, color = if (commander.rarity == "Legendary") Color(0xFFFFC857) else Color(0xFFC89BFF))
+                        Text("Level ${commander.level} • Power ${number(commander.power.toLong())}")
+                    }
+                    Icon(Icons.Default.ChevronRight, null)
+                }
+            }
         }
     }
 }
+
+@Composable
+private fun AllianceScreen(vm: GameViewModel) {
+    val state = vm.state
+    LazyColumn(
+        Modifier.padding(horizontal = 12.dp),
+        contentPadding = PaddingValues(vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        item {
+            SectionTitle("Alliance [FLC]", state.alliance)
+            Card(colors = CardDefaults.cardColors(containerColor = Color(0xEE19251C))) {
+                Column(Modifier.padding(16.dp)) {
+                    Text("🦅", style = MaterialTheme.typography.displayMedium)
+                    Text("Falcons", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                    Text("Members 42/60 • Power 18.4M")
+                    Spacer(Modifier.height(12.dp))
+                    LinearProgressIndicator(progress = { .72f }, Modifier.fillMaxWidth())
+                    Spacer(Modifier.height(12.dp))
+                    Button(vm::allianceHelp, Modifier.fillMaxWidth(), enabled = state.allianceHelp > 0) {
+                        Icon(Icons.Default.Handshake, null)
+                        Spacer(Modifier.width(6.dp))
+                        Text("Help Allies (${state.allianceHelp})")
+                    }
+                }
+            }
+        }
+        item { SectionTitle("Alliance Activity", "Work together to grow") }
+        items(listOf("Alliance technology donation", "Territory flags", "Barbarian rally", "Alliance gifts")) {
+            ListItem(
+                headlineContent = { Text(it) },
+                leadingContent = { Icon(Icons.Default.Groups, null) },
+                trailingContent = { Icon(Icons.Default.ChevronRight, null) },
+                colors = ListItemDefaults.colors(containerColor = Color(0xEE19251C)),
+            )
+        }
+    }
+}
+
+@Composable
+private fun MoreScreen(vm: GameViewModel) {
+    var showMail by remember { mutableStateOf(false) }
+    if (showMail) {
+        AlertDialog(
+            onDismissRequest = { showMail = false },
+            title = { Text("Inbox") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    vm.state.mail.forEach {
+                        Column {
+                            Text(it.title, fontWeight = FontWeight.Bold)
+                            Text(it.body, style = MaterialTheme.typography.bodySmall)
+                        }
+                    }
+                }
+            },
+            confirmButton = { TextButton({ showMail = false }) { Text("Close") } },
+        )
+    }
+    LazyColumn(
+        Modifier.padding(horizontal = 12.dp),
+        contentPadding = PaddingValues(vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        item { SectionTitle("Governor", "Account and kingdom tools") }
+        item {
+            Card(colors = CardDefaults.cardColors(containerColor = Color(0xEE19251C))) {
+                Column(Modifier.padding(16.dp)) {
+                    Text(vm.state.governorName, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                    Text("Kingdom #1 • Player ID 100001")
+                    Text("Beta v0.9.0", color = MaterialTheme.colorScheme.primary)
+                }
+            }
+        }
+        item { MenuRow(Icons.Default.Mail, "Inbox", "${vm.state.mail.size} messages") { showMail = true } }
+        item { MenuRow(Icons.Default.TaskAlt, "Daily Quests", "4 rewards available") {} }
+        item { MenuRow(Icons.Default.Inventory2, "Inventory", "View your items") {} }
+        item { MenuRow(Icons.Default.Leaderboard, "Rankings", "Kingdom leaderboard") {} }
+        item { MenuRow(Icons.Default.Settings, "Settings", "Sound, language, account") {} }
+        item {
+            OutlinedButton(vm::logout, Modifier.fillMaxWidth()) {
+                Icon(Icons.Default.Logout, null)
+                Spacer(Modifier.width(6.dp))
+                Text("Log out")
+            }
+        }
+    }
+}
+
+@Composable
+private fun MenuRow(icon: ImageVector, title: String, subtitle: String, onClick: () -> Unit) {
+    Card(onClick = onClick, colors = CardDefaults.cardColors(containerColor = Color(0xEE19251C))) {
+        Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+            Icon(icon, null, tint = MaterialTheme.colorScheme.primary)
+            Spacer(Modifier.width(14.dp))
+            Column(Modifier.weight(1f)) {
+                Text(title, fontWeight = FontWeight.Bold)
+                Text(subtitle, style = MaterialTheme.typography.bodySmall)
+            }
+            Icon(Icons.Default.ChevronRight, null)
+        }
+    }
+}
+
+@Composable
+private fun SectionTitle(title: String, subtitle: String) {
+    Column {
+        Text(title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+        Text(subtitle, style = MaterialTheme.typography.bodySmall, color = Color.White.copy(alpha = .68f))
+    }
+}
+
+private fun number(value: Long): String = NumberFormat.getIntegerInstance().format(value)
