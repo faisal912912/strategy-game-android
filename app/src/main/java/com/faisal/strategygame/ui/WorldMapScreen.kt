@@ -36,16 +36,37 @@ fun WorldMapScreen(vm: GameViewModel) {
             icon = { Text(target.icon, style = MaterialTheme.typography.displaySmall) },
             title = { Text(target.name) },
             text = {
-                Text("Level ${target.level}\nCoordinates X:${target.x} Y:${target.y}\nDispatch 250 troops? Travel time is based on real map distance.")
+                val scout = vm.scoutReports[target.id]
+                Text(
+                    if (scout == null)
+                        "Level ${target.level}\nCoordinates X:${target.x} Y:${target.y}\nScout first or dispatch 250 troops."
+                    else
+                        "SCOUTED ✓\nEstimated troops: ${scout.estimatedTroops}\nPossible reward: ${scout.reward}\nDispatch 250 troops?"
+                )
             },
             confirmButton = {
                 Button(onClick = { vm.startMarch(target); selected = null }) { Text("MARCH") }
             },
-            dismissButton = { TextButton(onClick = { selected = null }) { Text("SCOUT") } },
+            dismissButton = {
+                TextButton(onClick = { vm.scoutTarget(target); selected = null }) { Text("SCOUT") }
+            },
         )
     }
 
     Column(Modifier.fillMaxSize()) {
+        vm.returningMarches.firstOrNull()?.let { returning ->
+            val seconds = ((returning.arrivesAt - System.currentTimeMillis()).coerceAtLeast(0) + 999) / 1_000
+            Surface(color = Color(0xEE24402B)) {
+                Row(Modifier.fillMaxWidth().padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text("🏠", style = MaterialTheme.typography.headlineMedium)
+                    Spacer(Modifier.width(8.dp))
+                    Column {
+                        Text("Army returning home", fontWeight = FontWeight.Bold)
+                        Text("${returning.troops} survivors • ${returning.lootFood} food • ${seconds}s")
+                    }
+                }
+            }
+        }
         vm.marches.firstOrNull()?.let { march ->
             val seconds = ((march.arrivesAt - System.currentTimeMillis()).coerceAtLeast(0) + 999) / 1_000
             Surface(color = Color(0xEE3B2E18)) {

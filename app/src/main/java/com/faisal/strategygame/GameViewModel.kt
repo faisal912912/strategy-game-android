@@ -15,6 +15,9 @@ import com.faisal.strategygame.model.GameState
 import com.faisal.strategygame.model.BattleState
 import com.faisal.strategygame.model.MarchState
 import com.faisal.strategygame.model.WorldTarget
+import com.faisal.strategygame.model.ReturnMarch
+import com.faisal.strategygame.model.BattleReport
+import com.faisal.strategygame.model.ScoutReport
 
 class GameViewModel(application: Application) : AndroidViewModel(application) {
     private val prefs = application.getSharedPreferences("kingdom_beta", 0)
@@ -51,6 +54,15 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
     )
 
     var marches by mutableStateOf<List<MarchState>>(emptyList())
+        private set
+
+    var returningMarches by mutableStateOf<List<ReturnMarch>>(emptyList())
+        private set
+
+    var battleReports by mutableStateOf<List<BattleReport>>(emptyList())
+        private set
+
+    var scoutReports by mutableStateOf<Map<String, ScoutReport>>(emptyMap())
         private set
 
     var connectionStatus by mutableStateOf(if (serverUrl.isBlank()) "Offline Beta" else "Not tested")
@@ -137,6 +149,7 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
 
     fun tick() {
         resolveMarches()
+        resolveReturns()
         val current = action ?: return
         if (System.currentTimeMillis() < current.endsAt) return
         when (current.type) {
@@ -206,8 +219,28 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         if (battle != null) return
         val arrived = marches.firstOrNull { System.currentTimeMillis() >= it.arrivesAt } ?: return
         marches = marches.filterNot { it.id == arrived.id }
-        state = state.copy(troops = state.troops + arrived.troops)
         startBattle(arrived.target.missionId)
+    }
+
+    fun scoutTarget(target: WorldTarget) {
+        val estimate = target.level * 180 + 350
+        scoutReports = scoutReports + (target.id to ScoutReport(
+            target.id, target.name, estimate, state.missions.first { it.id == target.missionId }.reward
+        ))
+        toastMessage = "Scout report ready for ${target.name}"
+    }
+
+    private fun resolveReturns() {
+        val now = System.currentTimeMillis()
+        val arrived = returningMarches.filter { now >= it.arrivesAt }
+        if (arrived.isEmpty()) return
+        state = state.copy(
+            troops = state.troops + arrived.sumOf { it.troops },
+            resources = state.resources.copy(food = state.resources.food + arrived.sumOf { it.lootFood }),
+        )
+        returningMarches = returningMarches - arrived.toSet()
+        toastMessage = "Army returned with loot"
+        save()
     }
 
     fun startBattle(missionId: String) {
@@ -240,7 +273,26 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
             status = status,
             lastHit = "Your army dealt $enemyDamage damage • Enemy dealt $playerDamage",
         )
-        if (status == "VICTORY") completeMission(current.missionId)
+        if (status != "FIGHTING") {
+            val mission = state.missions.first { it.id == current.missionId }
+            val survivors = if (status == "VICTORY") 220 else 170
+            val loot = if (status == "VICTORY") 5_000L else 0L
+            battleReports = listOf(
+                BattleReport(
+                    "report-${System.currentTimeMillis()}", mission.title, status == "VICTORY",
+                    nextRound, survivors, 250 - survivors, loot
+                )
+            ) + battleReports
+            returningMarches = returningMarches + ReturnMarch(
+                survivors, loot, System.currentTimeMillis() + 10_000
+            )
+            if (status == "VICTORY") {
+                state = state.copy(
+                    missions = state.missions.map { if (it.id == current.missionId) it.copy(completed = true) else it },
+                    power = state.power + 200,
+                )
+            }
+        }
     }
 
     fun leaveBattle() {

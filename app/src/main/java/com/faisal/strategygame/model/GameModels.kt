@@ -64,6 +64,29 @@ data class MarchState(
     val arrivesAt: Long,
 )
 
+data class ReturnMarch(
+    val troops: Int,
+    val lootFood: Long,
+    val arrivesAt: Long,
+)
+
+data class BattleReport(
+    val id: String,
+    val enemy: String,
+    val victory: Boolean,
+    val rounds: Int,
+    val survivors: Int,
+    val losses: Int,
+    val lootFood: Long,
+)
+
+data class ScoutReport(
+    val targetId: String,
+    val enemy: String,
+    val estimatedTroops: Int,
+    val reward: String,
+)
+
 data class BattleState(
     val missionId: String,
     val enemyName: String,

@@ -437,6 +437,25 @@ private fun AllianceScreen(vm: GameViewModel) {
 @Composable
 private fun MoreScreen(vm: GameViewModel) {
     var showMail by remember { mutableStateOf(false) }
+    var showReports by remember { mutableStateOf(false) }
+    if (showReports) {
+        AlertDialog(
+            onDismissRequest = { showReports = false },
+            title = { Text("War Reports") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    if (vm.battleReports.isEmpty()) Text("No battle reports yet")
+                    vm.battleReports.take(5).forEach { report ->
+                        Column {
+                            Text(if (report.victory) "Victory • ${report.enemy}" else "Defeat • ${report.enemy}", fontWeight = FontWeight.Bold)
+                            Text("Rounds ${report.rounds} • Survivors ${report.survivors} • Losses ${report.losses} • Loot ${report.lootFood}")
+                        }
+                    }
+                }
+            },
+            confirmButton = { TextButton({ showReports = false }) { Text("Close") } },
+        )
+    }
     if (showMail) {
         AlertDialog(
             onDismissRequest = { showMail = false },
@@ -471,6 +490,7 @@ private fun MoreScreen(vm: GameViewModel) {
                 }
             }
         }
+        item { MenuRow(Icons.Default.MilitaryTech, "War Reports", "${vm.battleReports.size} reports") { showReports = true } }
         item { MenuRow(Icons.Default.Mail, "Inbox", "${vm.state.mail.size} messages") { showMail = true } }
         item { MenuRow(Icons.Default.TaskAlt, "Daily Quests", "4 rewards available") {} }
         item { MenuRow(Icons.Default.Inventory2, "Inventory", "View your items") {} }
