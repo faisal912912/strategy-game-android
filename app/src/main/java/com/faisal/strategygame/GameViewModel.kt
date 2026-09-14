@@ -13,6 +13,8 @@ import kotlinx.coroutines.withContext
 import com.faisal.strategygame.model.GameAction
 import com.faisal.strategygame.model.GameState
 import com.faisal.strategygame.model.BattleState
+import com.faisal.strategygame.model.MarchState
+import com.faisal.strategygame.model.WorldTarget
 
 class GameViewModel(application: Application) : AndroidViewModel(application) {
     private val prefs = application.getSharedPreferences("kingdom_beta", 0)
@@ -40,6 +42,15 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         private set
 
     var battle by mutableStateOf<BattleState?>(null)
+        private set
+
+    val worldTargets = listOf(
+        WorldTarget("t1", "Border Raiders", 438, 671, 4, "👹", "m1"),
+        WorldTarget("t2", "Ancient Ruins", 401, 702, 7, "🗿", "m2"),
+        WorldTarget("t3", "Trade Caravan", 466, 645, 10, "🐫", "m3"),
+    )
+
+    var marches by mutableStateOf<List<MarchState>>(emptyList())
         private set
 
     var connectionStatus by mutableStateOf(if (serverUrl.isBlank()) "Offline Beta" else "Not tested")
@@ -125,6 +136,7 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun tick() {
+        resolveMarches()
         val current = action ?: return
         if (System.currentTimeMillis() < current.endsAt) return
         when (current.type) {
@@ -162,6 +174,40 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         state = state.copy(resources = state.resources.copy(gems = state.resources.gems - 25))
         action = current.copy(endsAt = System.currentTimeMillis())
         tick()
+    }
+
+    fun startMarch(target: WorldTarget) {
+        if (marches.size >= 5) {
+            toastMessage = "All 5 march slots are busy"
+            return
+        }
+        if (state.troops < 250) {
+            toastMessage = "You need at least 250 troops"
+            return
+        }
+        val distance = kotlin.math.sqrt(
+            ((target.x - 412) * (target.x - 412) + (target.y - 687) * (target.y - 687)).toDouble()
+        )
+        val travelSeconds = (8 + distance / 4).toLong().coerceAtMost(30)
+        val now = System.currentTimeMillis()
+        marches = marches + MarchState("march-${now}", target, 250, now, now + travelSeconds * 1_000)
+        state = state.copy(troops = state.troops - 250)
+        toastMessage = "March dispatched • ${travelSeconds}s"
+    }
+
+    fun recallMarch(id: String) {
+        val march = marches.firstOrNull { it.id == id } ?: return
+        marches = marches.filterNot { it.id == id }
+        state = state.copy(troops = state.troops + march.troops)
+        toastMessage = "March recalled • all troops returned"
+    }
+
+    private fun resolveMarches() {
+        if (battle != null) return
+        val arrived = marches.firstOrNull { System.currentTimeMillis() >= it.arrivesAt } ?: return
+        marches = marches.filterNot { it.id == arrived.id }
+        state = state.copy(troops = state.troops + arrived.troops)
+        startBattle(arrived.target.missionId)
     }
 
     fun startBattle(missionId: String) {

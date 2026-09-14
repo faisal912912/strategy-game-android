@@ -46,6 +46,24 @@ data class GameAction(
     val endsAt: Long,
 )
 
+data class WorldTarget(
+    val id: String,
+    val name: String,
+    val x: Int,
+    val y: Int,
+    val level: Int,
+    val icon: String,
+    val missionId: String,
+)
+
+data class MarchState(
+    val id: String,
+    val target: WorldTarget,
+    val troops: Int,
+    val startedAt: Long,
+    val arrivesAt: Long,
+)
+
 data class BattleState(
     val missionId: String,
     val enemyName: String,

@@ -182,7 +182,7 @@ private fun KingdomScreen(vm: GameViewModel) {
             ) { current ->
                 when (current) {
                     GameTab.CITY -> CityScreen(vm)
-                    GameTab.WORLD -> WorldScreen(vm)
+                    GameTab.WORLD -> WorldMapScreen(vm)
                     GameTab.COMMANDERS -> CommandersScreen(vm.state)
                     GameTab.ALLIANCE -> AllianceScreen(vm)
                     GameTab.MORE -> MoreScreen(vm)
