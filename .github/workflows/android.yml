@@ -51,7 +51,11 @@ jobs:
           disable-animations: true
           script: |
             ./gradlew connectedDebugAndroidTest
-            adb pull /sdcard/Android/data/com.faisal.strategygame/files/screenshots app/build/device-screenshots
+            mkdir -p app/build/device-screenshots
+            adb install -r app/build/outputs/apk/debug/app-debug.apk
+            adb shell am start -W -n com.faisal.strategygame/.MainActivity
+            sleep 2
+            adb exec-out screencap -p > app/build/device-screenshots/portrait-login.png
       - uses: actions/upload-artifact@v4
         if: always()
         with:
