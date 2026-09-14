@@ -28,6 +28,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.*
 import com.faisal.strategygame.*
+import com.faisal.strategygame.R
 import com.faisal.strategygame.data.*
 import kotlinx.coroutines.delay
 import org.json.JSONObject
@@ -86,7 +87,7 @@ fun TownBoard(levels:Map<String,Int>,buildLabel:String?,reduced:Boolean,onBuildi
             drawImage(board,dstOffset=IntOffset(origin.x.roundToInt(),origin.y.roundToInt()),dstSize=IntSize(side,side),filterQuality=FilterQuality.Medium)
             // Small citizens follow the courtyard roads; motion stops with Reduce motion.
             repeat(8) {i->val t=(phase+i*.125f)%1f;val p=pos(380f+t*250,445f+sin(t*6.283f+i)*85)
-                drawOval(Color.Black.copy(.23f),p+Offset(-3,3),androidx.compose.ui.geometry.Size(8f,4f))
+                drawOval(Color.Black.copy(.23f),p+Offset(-3f,3f),androidx.compose.ui.geometry.Size(8f,4f))
                 drawCircle(if(i%2==0) Color(0xFF3068AA) else Gold,3f*scale,p)
                 drawCircle(Color(0xFFE1B494),1.8f*scale,p-Offset(0f,3.3f*scale))
             }

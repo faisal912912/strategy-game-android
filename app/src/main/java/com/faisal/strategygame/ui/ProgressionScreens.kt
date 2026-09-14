@@ -21,6 +21,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.faisal.strategygame.*
+import com.faisal.strategygame.R
 import com.faisal.strategygame.data.*
 import org.json.JSONObject
 
@@ -154,7 +155,13 @@ fun MilitaryScreen(vm: FrontierViewModel,ask:(Command)->Unit) {
 
 private fun productName(p:JSONObject) = when(p.optString("product_key")) {"starter_resource_crate"->"صندوق موارد البداية";"growth_bundle"->"باقة النمو";else->if(p.optString("product_type")=="iap") "${num(p.optLong("paid_gems_grant")+p.optLong("bonus_gems_grant"))} جوهرة" else p.optString("display_name")}
 private fun grantsDescription(p:JSONObject):String {
-    val g=p.obj("grants");val parts=listOf("food","wood","stone","gold","xp","bp_points").filter{g.optLong(it)>0}.map{"${num(g.optLong(it))} ${when(it){"xp"->"خبرة";"bp_points"->"نقطة موسم";else->title(it)}}.toMutableList()
+    val g=p.obj("grants")
+    val parts=listOf("food","wood","stone","gold","xp","bp_points")
+        .filter {g.optLong(it)>0}
+        .map {key ->
+            val label=when(key) {"xp"->"خبرة";"bp_points"->"نقطة موسم";else->title(key)}
+            "${num(g.optLong(key))} $label"
+        }.toMutableList()
     val items=g.obj("items");items.keys().forEach{k->parts+="${num(items.optLong(k))} × ${title(k)}"}
     return parts.joinToString("\n")
 }

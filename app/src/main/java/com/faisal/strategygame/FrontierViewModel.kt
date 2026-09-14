@@ -56,7 +56,7 @@ class FrontierViewModel(app: Application) : AndroidViewModel(app) {
     fun scan(x: Int, y: Int) {
         val nx=x.coerceIn(0,499); val ny=y.coerceIn(0,499)
         if (nx==scanX && ny==scanY) return
-        scanX=nx; scanY=ny; refresh()
+        scanX=nx; scanY=ny; refresh(queue = true)
     }
     var reduceMotion by mutableStateOf(prefs.getBoolean("reduceMotion", false)); private set
     val canAct get() = signedIn && !busy && !refreshing && pending == null && lastSync > 0 && failedPaths.isEmpty()
@@ -129,10 +129,10 @@ class FrontierViewModel(app: Application) : AndroidViewModel(app) {
             refreshData()
         } catch (e: Exception) { handle(e) } finally { busy = false }
     }
-    fun selectTab(value: String) { tab = value; refresh() }
-    fun refresh() {
+    fun selectTab(value: String) { tab = value; refresh(queue = true) }
+    fun refresh(queue: Boolean = false) {
         if (!signedIn) return
-        if (busy || refreshing) { queuedRefresh = true; return }
+        if (busy || refreshing) { if(queue) queuedRefresh = true; return }
         viewModelScope.launch { refreshData() }
     }
     private suspend fun refreshData() {
