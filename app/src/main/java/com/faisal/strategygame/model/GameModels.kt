@@ -39,6 +39,13 @@ data class MailItem(
     val read: Boolean = false,
 )
 
+data class GameAction(
+    val type: String,
+    val targetId: String,
+    val label: String,
+    val endsAt: Long,
+)
+
 data class GameState(
     val governorName: String = "",
     val power: Long = 24_850,

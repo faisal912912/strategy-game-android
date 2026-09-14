@@ -11,6 +11,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import kotlinx.coroutines.delay
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
@@ -84,6 +85,12 @@ private fun KingdomScreen(vm: GameViewModel) {
     var tab by remember { mutableStateOf(GameTab.CITY) }
     val snackbar = remember { SnackbarHostState() }
     val message = vm.toastMessage
+    LaunchedEffect(Unit) {
+        while (true) {
+            vm.tick()
+            delay(1_000)
+        }
+    }
     LaunchedEffect(message) {
         message?.let {
             snackbar.showSnackbar(it)
@@ -162,11 +169,31 @@ private fun MiniResource(icon: String, value: Long) {
 @Composable
 private fun CityScreen(vm: GameViewModel) {
     val state = vm.state
+    var pendingUpgrade by remember { mutableStateOf<Building?>(null) }
+    pendingUpgrade?.let { building ->
+        val wood = building.level * 1_000L
+        val stone = building.level * 500L
+        AlertDialog(
+            onDismissRequest = { pendingUpgrade = null },
+            icon = { Text(building.icon, style = MaterialTheme.typography.headlineLarge) },
+            title = { Text("Upgrade ${building.name}?") },
+            text = { Text("Level ${building.level} → ${building.level + 1}\nCost: ${number(wood)} wood + ${number(stone)} stone\nTime: 30 seconds") },
+            confirmButton = {
+                Button(onClick = { vm.upgradeBuilding(building.id); pendingUpgrade = null }) { Text("Start Upgrade") }
+            },
+            dismissButton = { TextButton(onClick = { pendingUpgrade = null }) { Text("Cancel") } },
+        )
+    }
     LazyColumn(
         Modifier.fillMaxSize().padding(horizontal = 12.dp),
         contentPadding = PaddingValues(vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
+        vm.action?.let { running ->
+            item {
+                ActionQueueCard(running, vm::speedUp)
+            }
+        }
         item {
             Card(colors = CardDefaults.cardColors(containerColor = Color(0xDD26382A))) {
                 Column(Modifier.padding(16.dp)) {
@@ -195,7 +222,27 @@ private fun CityScreen(vm: GameViewModel) {
         }
         item { SectionTitle("Buildings", "Tap upgrade to grow your power") }
         items(state.buildings, key = { it.id }) { building ->
-            BuildingCard(building) { vm.upgradeBuilding(building.id) }
+            BuildingCard(building) { pendingUpgrade = building }
+        }
+    }
+}
+
+@Composable
+private fun ActionQueueCard(action: GameAction, onSpeedUp: () -> Unit) {
+    val seconds = ((action.endsAt - System.currentTimeMillis()).coerceAtLeast(0) + 999) / 1_000
+    Card(colors = CardDefaults.cardColors(containerColor = Color(0xFF3B2E18))) {
+        Column(Modifier.fillMaxWidth().padding(14.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                CircularProgressIndicator(Modifier.size(28.dp), strokeWidth = 3.dp)
+                Spacer(Modifier.width(12.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(action.label, fontWeight = FontWeight.Bold)
+                    Text("00:${seconds.toString().padStart(2, '0')} remaining")
+                }
+                FilledTonalButton(onClick = onSpeedUp) { Text("⚡ 25") }
+            }
+            Spacer(Modifier.height(8.dp))
+            LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
         }
     }
 }
