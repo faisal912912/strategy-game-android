@@ -1,8 +1,0 @@
-<resources>
-    <style name="Theme.StrategyGame" parent="android:style/Theme.Material.Light.NoActionBar">
-        <item name="android:fontFamily">sans</item>
-        <item name="android:windowLightStatusBar">false</item>
-        <item name="android:statusBarColor">#101812</item>
-        <item name="android:navigationBarColor">#101812</item>
-    </style>
-</resources>

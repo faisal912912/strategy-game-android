@@ -49,9 +49,13 @@ jobs:
           arch: x86_64
           profile: pixel_6
           disable-animations: true
-          script: ./gradlew connectedDebugAndroidTest
+          script: |
+            ./gradlew connectedDebugAndroidTest
+            adb pull /sdcard/Android/data/com.faisal.strategygame/files/screenshots app/build/device-screenshots
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: device-test-reports
-          path: app/build/reports/androidTests/
+          path: |
+            app/build/reports/androidTests/
+            app/build/device-screenshots/

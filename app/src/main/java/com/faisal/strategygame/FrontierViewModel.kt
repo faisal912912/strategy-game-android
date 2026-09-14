@@ -188,7 +188,7 @@ class FrontierViewModel(app: Application) : AndroidViewModel(app) {
                 refreshData()
             } catch (e: Exception) {
                 // A timeout/5xx can happen AFTER commit. Keep the same body and key for safe replay.
-                if (e is ApiFailure && e.status in 400..499 && e.status !in listOf(401, 408, 425, 429)) {
+                if (e is ApiFailure && isFinalRejection(e.status, e.message.orEmpty())) {
                     if (e.status == 404 && command.path.startsWith("/game/") && command.path.endsWith("/claim")) {
                         val kind = if ("buildings" in command.path) "build" else if ("training" in command.path) "train" else "research"
                         jobs = jobs.filterNot { it.kind == kind }
@@ -211,6 +211,11 @@ class FrontierViewModel(app: Application) : AndroidViewModel(app) {
 }
 
 fun instantMillis(value: String): Long = runCatching { Instant.parse(value).toEpochMilli() }.getOrDefault(0)
+fun isFinalRejection(status: Int, message: String): Boolean {
+    if (status !in 400..499 || status in listOf(401,408,425,429)) return false
+    if (status == 409 && listOf("idempotency", "in progress", "processing").any { message.contains(it, ignoreCase=true) }) return false
+    return true
+}
 fun versionSupported(current: String, minimum: String): Boolean {
     fun parts(s: String) = s.substringBefore('-').split('.').map { it.toIntOrNull() ?: 0 }
     val a = parts(current); val b = parts(minimum)

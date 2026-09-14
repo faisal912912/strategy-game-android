@@ -6,6 +6,13 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class FrontierContractTest {
+    @Test fun inProgressConflictRetainsTheCommandForReplay() {
+        assertFalse(isFinalRejection(409,"request with this idempotency key is already in progress"))
+        assertFalse(isFinalRejection(503,"server unavailable"))
+        assertFalse(isFinalRejection(429,"rate limit exceeded"))
+        assertTrue(isFinalRejection(409,"not enough troops"))
+        assertTrue(isFinalRejection(400,"not enough resources"))
+    }
     @Test fun gatewayCannotSmuggleCredentialsOrApiPaths() {
         assertEquals("https://game.example.com",secureOrigin(" https://game.example.com/ "))
         listOf("http://game.example.com","https://name:password@game.example.com","https://game.example.com/api/v1","https://game.example.com?token=a").forEach {
