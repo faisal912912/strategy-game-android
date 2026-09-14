@@ -45,6 +45,8 @@ class FrontierViewModel(app: Application) : AndroidViewModel(app) {
     var pending by mutableStateOf<Command?>(null); private set
     var now by mutableStateOf(System.currentTimeMillis()); private set
     var lastSync by mutableStateOf(0L); private set
+    var battleResult by mutableStateOf<JSONObject?>(null); private set
+    fun dismissBattle() { battleResult = null }
     var scanX by mutableStateOf(250); private set
     var scanY by mutableStateOf(250); private set
     val nodePath get() = "/world/v3/resources/scan?radius=100&x=$scanX&y=$scanY"
@@ -132,7 +134,7 @@ class FrontierViewModel(app: Application) : AndroidViewModel(app) {
         val paths = mutableListOf("/me", "/world/v3/gather/marches", "/world/v4/hunt/marches")
         paths += when (tab) {
             "city" -> listOf("/game/buildings", "/city/progression")
-            "army" -> listOf("/game/research", "/commanders", "/hospital/v2/status", "/hospital/v2/heal/jobs")
+            "army" -> listOf("/game/research", "/commanders", "/hospital", "/hospital/v2/status", "/hospital/v2/heal/jobs")
             "world" -> listOf("/world/v2/state", nodePath, monsterPath, "/world/v4/pve/status", "/world/resources", "/world/monsters")
             "missions" -> listOf("/daily/quests", "/progress/v2/daily", "/world/v4/hunt/reports", "/world/v3/gather/reports", "/mail")
             else -> listOf("/alliances/me", "/leaderboards/power", "/inventory")
@@ -173,6 +175,7 @@ class FrontierViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch {
             try {
                 val response = api.request(command.path, command.body, command.key)
+                if (command.path == "/world/monsters/claim") battleResult = response
                 if (command.jobKind.isNotEmpty()) {
                     val claimPath = when(command.jobKind) {"gather" -> "/world/gather/claim";"hunt" -> "/world/monsters/claim";else -> ""}
                     jobs = jobs.filterNot { it.kind == command.jobKind } + CityJob(command.jobKind, command.title, instantMillis(response.optString("finishes_at")),claimPath,response.optLong("job_id",response.optLong("hunt_id")))

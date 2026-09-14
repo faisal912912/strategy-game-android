@@ -157,6 +157,13 @@ private fun Kingdom(vm: FrontierViewModel) {
     confirmation?.let { command -> AlertDialog(onDismissRequest={confirmation=null},title={Text(command.title)},text={Text(commandDescription(command))},
         confirmButton={TextButton({confirmation=null;vm.submit(command)},enabled=vm.canAct) {Text("تأكيد الأمر")}},dismissButton={TextButton({confirmation=null}) {Text("إلغاء")}}) }
     detail?.let { (heading,body) -> AlertDialog(onDismissRequest={detail=null},title={Text(heading)},text={Text(body,Modifier.verticalScroll(rememberScrollState()))},confirmButton={TextButton({detail=null}){Text("إغلاق")}}) }
+    vm.battleResult?.let { result -> AlertDialog(onDismissRequest={vm.dismissBattle()},title={Text(if(result.optBoolean("success")) "انتصار الحملة" else "انتهت الحملة")},text={Column(verticalArrangement=Arrangement.spacedBy(12.dp)) {
+        VictoryScene(result.optBoolean("success"),vm.reduceMotion)
+        Text("خسائر ${num(result.optLong("losses"))} • جرحى ${num(result.optLong("wounded"))}")
+        val rewards=result.obj("rewards")
+        Text(listOf("food","wood","gold").joinToString(" · "){"${num(rewards.optLong(it))} ${title(it)}"},color=Gold)
+        Text("عادت القوات الناجية. يمكنك علاج الجرحى من شاشة الجيش.",style=MaterialTheme.typography.bodySmall)
+    }},confirmButton={TextButton({vm.dismissBattle()}){Text("العودة إلى المملكة")}}) }
 }
 private fun commandDescription(c: Command): String = when {
     c.path.endsWith("/hunt/start") || c.path.endsWith("/monsters/hunt") -> "ستغادر القوات المحددة المدينة. يحسب السيرفر النتيجة والخسائر؛ قد تحتاج القوات المصابة إلى العلاج."
@@ -245,7 +252,14 @@ private fun Army(vm: FrontierViewModel, ask: (Command)->Unit) {
         }
         TextButton({ask(Command("استلام التدريب المكتمل","/game/training/claim",JSONObject()))},enabled=vm.canAct){Text("استلام تدريب سابق")}
     }
-    Section("المستشفى")
+    Section("مستشفى الحملات")
+    Panel {
+        val h=vm.doc("/hospital");val w=h.obj("wounded");val total=listOf("infantry","cavalry","archers").sumOf{w.optLong(it)}
+        Text("الجرحى: ${num(total)} • السعة: ${num(h.optLong("capacity"))}")
+        Text("العلاج: ${num(total*20)} غذاء · ${num(total*10)} خشب",color=Mint,style=MaterialTheme.typography.bodySmall)
+        ActionButton("علاج جرحى الحملات",vm.canAct&&total>0&&vm.me.obj("resources").optLong("food")>=total*20&&vm.me.obj("resources").optLong("wood")>=total*10){ask(Command("علاج $total جندي","/hospital/heal",w))}
+    }
+    Section("مستشفى الحدود")
     Panel {
         val h=vm.doc("/hospital/v2/status");val w=h.obj("wounded");val total=listOf("infantry","cavalry","archers").sumOf{w.optLong(it)}
         Text("الجرحى: ${num(total)}  •  السعة: ${num(h.optLong("capacity"))}")
@@ -344,6 +358,7 @@ private fun ArmyDispatch(vm: FrontierViewModel,target:JSONObject,type:String,onD
         TextButton({inf=army.optLong("infantry").toString();cav=army.optLong("cavalry").toString();arc=army.optLong("archers").toString()}){Text("اختيار جميع القوات")}
         if(type!="gather") Notice("قوة الهدف ${num(target.optLong("power"))}. الانتصار غير مضمون؛ قد تخسر قوات.",true)
         Text("إجمالي القوات: ${num(i+c+a)}",color=Gold)
+        if(type=="classicHunt") Text("القوة: ${num(i*100+c*110+a*105)}",color=Mint)
     }},confirmButton={TextButton({
         val body=json("infantry" to i,"cavalry" to c,"archers" to a)
         val path=when(type){"gather"->{body.put("node_id",target.getLong("id"));"/world/v3/gather/start"};"classicHunt"->{body.put("monster_id",target.getLong("id"));"/world/monsters/hunt"};else->{body.put("monster_id",target.getLong("id"));"/world/v4/hunt/start"}}

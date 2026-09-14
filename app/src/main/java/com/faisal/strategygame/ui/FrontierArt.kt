@@ -9,6 +9,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.*
 import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.unit.dp
 import kotlin.math.sin
 
@@ -81,5 +82,24 @@ fun MarchTrail(progress: Float, modifier: Modifier = Modifier) {
         drawLine(Mint,Offset(start,y),Offset(start+(end-start)*p,y),4f)
         drawCircle(Gold,7f,Offset(start+(end-start)*p,y))
         drawCircle(Mint,4f,Offset(end,y))
+    }
+}
+
+@Composable
+fun VictoryScene(victory: Boolean, reduced: Boolean) {
+    val transition=rememberInfiniteTransition(label="result")
+    val phase by transition.animateFloat(0f,1f,infiniteRepeatable(tween(2400,easing=LinearEasing)),label="sparks")
+    Canvas(Modifier.fillMaxWidth().height(110.dp)) {
+        val center=Offset(size.width/2,size.height/2)
+        drawCircle(Gold.copy(.1f),size.height*.46f,center)
+        for(i in 0..11) {
+            val angle=i*6.283f/12
+            val distance=size.height*(.28f+(if(reduced) .2f else phase)*.22f)
+            drawCircle(if(victory) Gold.copy(if(reduced) .7f else 1f-phase) else Mint.copy(.4f),3f,
+                Offset(center.x+kotlin.math.cos(angle)*distance,center.y+kotlin.math.sin(angle)*distance))
+        }
+        val shield=Path().apply{moveTo(center.x-25,center.y-28);lineTo(center.x+25,center.y-28);lineTo(center.x+21,center.y+10);quadraticTo(center.x,center.y+38,center.x-21,center.y+10);close()}
+        drawPath(shield,if(victory) Gold else Mint)
+        if(victory) {drawLine(Ink,Offset(center.x-12,center.y),Offset(center.x-2,center.y+10),5f);drawLine(Ink,Offset(center.x-2,center.y+10),Offset(center.x+14,center.y-12),5f)}
     }
 }
