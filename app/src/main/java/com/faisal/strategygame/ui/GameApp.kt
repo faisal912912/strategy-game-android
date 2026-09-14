@@ -37,30 +37,45 @@ private enum class GameTab(val label: String, val icon: ImageVector) {
 fun GameApp(vm: GameViewModel = viewModel()) {
     val state = vm.state
     if (state.governorName.isBlank()) {
-        LoginScreen(vm::login)
+        LoginScreen(vm)
     } else {
         KingdomScreen(vm)
     }
 }
 
 @Composable
-private fun LoginScreen(onLogin: (String) -> Unit) {
+private fun LoginScreen(vm: GameViewModel) {
     var name by remember { mutableStateOf("") }
+    var gateway by remember { mutableStateOf(vm.serverUrl) }
     Box(
         Modifier.fillMaxSize().background(
             Brush.verticalGradient(listOf(Color(0xFF263F2A), Color(0xFF0B130D)))
-        ).padding(24.dp),
+        ).padding(20.dp),
         contentAlignment = Alignment.Center,
     ) {
         Card(colors = CardDefaults.cardColors(containerColor = Color(0xEE19251C))) {
             Column(
-                Modifier.padding(24.dp).fillMaxWidth(),
+                Modifier.padding(20.dp).fillMaxWidth(),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                Text("♛", style = MaterialTheme.typography.displayLarge, color = MaterialTheme.colorScheme.primary)
+                Text("♛", style = MaterialTheme.typography.displayMedium, color = MaterialTheme.colorScheme.primary)
                 Text("KINGDOM FRONTIER", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Black)
-                Text("BETA", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
-                Spacer(Modifier.height(24.dp))
+                Text("BETA • SELECT KINGDOM", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+                Spacer(Modifier.height(14.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FilterChip(
+                        selected = vm.selectedServer == 1,
+                        onClick = { vm.selectServer(1) },
+                        label = { Text("Server 1") },
+                        leadingIcon = { Icon(Icons.Default.Public, null) },
+                    )
+                    FilterChip(
+                        selected = vm.selectedServer == 2,
+                        onClick = { vm.selectServer(2) },
+                        label = { Text("Server 2") },
+                        leadingIcon = { Icon(Icons.Default.Public, null) },
+                    )
+                }
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it.take(18) },
@@ -69,12 +84,42 @@ private fun LoginScreen(onLogin: (String) -> Unit) {
                     leadingIcon = { Icon(Icons.Default.Person, null) },
                     singleLine = true,
                 )
-                Spacer(Modifier.height(14.dp))
-                Button(onClick = { onLogin(name) }, modifier = Modifier.fillMaxWidth()) {
-                    Text("ENTER KINGDOM")
+                Spacer(Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = gateway,
+                    onValueChange = { gateway = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text("Secure server gateway (optional)") },
+                    placeholder = { Text("https://game.example.com/") },
+                    leadingIcon = { Icon(Icons.Default.Lock, null) },
+                    singleLine = true,
+                )
+                Spacer(Modifier.height(8.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        if (vm.connectionStatus.startsWith("Online")) Icons.Default.CloudDone else Icons.Default.CloudOff,
+                        null,
+                        tint = if (vm.connectionStatus.startsWith("Online")) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.primary,
+                    )
+                    Spacer(Modifier.width(6.dp))
+                    Text(vm.connectionStatus, style = MaterialTheme.typography.labelMedium)
                 }
                 Spacer(Modifier.height(10.dp))
-                Text("Server v10 ready • Local beta profile", style = MaterialTheme.typography.labelSmall)
+                OutlinedButton(
+                    onClick = { vm.testServer(gateway) },
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = gateway.isNotBlank(),
+                ) { Text("TEST SECURE CONNECTION") }
+                Button(
+                    onClick = {
+                        if (!vm.connectionStatus.startsWith("Online")) vm.useOfflineMode()
+                        vm.login(name)
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text(if (vm.connectionStatus.startsWith("Online")) "ENTER SERVER ${vm.selectedServer}" else "PLAY OFFLINE BETA")
+                }
+                Text("Direct backend ports are never exposed", style = MaterialTheme.typography.labelSmall)
             }
         }
     }
@@ -396,7 +441,9 @@ private fun MoreScreen(vm: GameViewModel) {
             Card(colors = CardDefaults.cardColors(containerColor = Color(0xEE19251C))) {
                 Column(Modifier.padding(16.dp)) {
                     Text(vm.state.governorName, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                    Text("Kingdom #1 • Player ID 100001")
+                    Text("Server ${vm.selectedServer} • Player ID 100001")
+                    Text(vm.connectionStatus, color = MaterialTheme.colorScheme.secondary)
+                    if (vm.serverUrl.isNotBlank()) Text(vm.serverUrl, style = MaterialTheme.typography.labelSmall, maxLines = 1)
                     Text("Beta v0.9.0", color = MaterialTheme.colorScheme.primary)
                 }
             }

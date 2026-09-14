@@ -5,6 +5,11 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.viewModelScope
+import com.faisal.strategygame.data.GameServer
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import com.faisal.strategygame.model.GameAction
 import com.faisal.strategygame.model.GameState
 
@@ -26,6 +31,44 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
 
     var toastMessage by mutableStateOf<String?>(null)
         private set
+
+    var serverUrl by mutableStateOf(prefs.getString("serverUrl", "") ?: "")
+        private set
+
+    var selectedServer by mutableStateOf(prefs.getInt("selectedServer", 1))
+        private set
+
+    var connectionStatus by mutableStateOf(if (serverUrl.isBlank()) "Offline Beta" else "Not tested")
+        private set
+
+    fun selectServer(id: Int) {
+        selectedServer = id
+        prefs.edit().putInt("selectedServer", id).apply()
+    }
+
+    fun testServer(rawUrl: String) {
+        val normalized = rawUrl.trim().trimEnd('/') + "/"
+        if (!normalized.startsWith("https://")) {
+            connectionStatus = "Use a secure HTTPS gateway"
+            return
+        }
+        serverUrl = normalized
+        connectionStatus = "Connecting…"
+        viewModelScope.launch {
+            val result = withContext(Dispatchers.IO) { GameServer(normalized).health() }
+            connectionStatus = if (result.isSuccess) "Online • Server $selectedServer" else "Unavailable"
+            if (result.isSuccess) {
+                prefs.edit().putString("serverUrl", normalized).apply()
+                toastMessage = "Secure server connection verified"
+            }
+        }
+    }
+
+    fun useOfflineMode() {
+        connectionStatus = "Offline Beta"
+        serverUrl = ""
+        prefs.edit().remove("serverUrl").apply()
+    }
 
     fun login(name: String) {
         state = state.copy(governorName = name.trim().ifBlank { "Governor" })
