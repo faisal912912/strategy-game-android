@@ -46,6 +46,16 @@ data class GameAction(
     val endsAt: Long,
 )
 
+data class BattleState(
+    val missionId: String,
+    val enemyName: String,
+    val playerHp: Int = 100,
+    val enemyHp: Int = 100,
+    val round: Int = 0,
+    val status: String = "FIGHTING",
+    val lastHit: String = "Armies are taking position…",
+)
+
 data class GameState(
     val governorName: String = "",
     val power: Long = 24_850,

@@ -12,6 +12,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import com.faisal.strategygame.model.GameAction
 import com.faisal.strategygame.model.GameState
+import com.faisal.strategygame.model.BattleState
 
 class GameViewModel(application: Application) : AndroidViewModel(application) {
     private val prefs = application.getSharedPreferences("kingdom_beta", 0)
@@ -36,6 +37,9 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         private set
 
     var selectedServer by mutableStateOf(prefs.getInt("selectedServer", 1))
+        private set
+
+    var battle by mutableStateOf<BattleState?>(null)
         private set
 
     var connectionStatus by mutableStateOf(if (serverUrl.isBlank()) "Offline Beta" else "Not tested")
@@ -158,6 +162,43 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         state = state.copy(resources = state.resources.copy(gems = state.resources.gems - 25))
         action = current.copy(endsAt = System.currentTimeMillis())
         tick()
+    }
+
+    fun startBattle(missionId: String) {
+        val mission = state.missions.first { it.id == missionId }
+        if (mission.completed) {
+            toastMessage = "This mission is already complete"
+            return
+        }
+        battle = BattleState(missionId, mission.title)
+    }
+
+    fun resolveBattleRound() {
+        val current = battle ?: return
+        if (current.status != "FIGHTING") return
+        val nextRound = current.round + 1
+        val commanderBonus = (state.commanders.first().power / 1_500).coerceAtMost(12)
+        val enemyDamage = (17 + commanderBonus + nextRound % 5).coerceAtMost(30)
+        val playerDamage = (8 + nextRound * 2).coerceAtMost(22)
+        val enemyHp = (current.enemyHp - enemyDamage).coerceAtLeast(0)
+        val playerHp = (current.playerHp - playerDamage).coerceAtLeast(0)
+        val status = when {
+            enemyHp == 0 -> "VICTORY"
+            playerHp == 0 -> "DEFEAT"
+            else -> "FIGHTING"
+        }
+        battle = current.copy(
+            playerHp = playerHp,
+            enemyHp = enemyHp,
+            round = nextRound,
+            status = status,
+            lastHit = "Your army dealt $enemyDamage damage • Enemy dealt $playerDamage",
+        )
+        if (status == "VICTORY") completeMission(current.missionId)
+    }
+
+    fun leaveBattle() {
+        battle = null
     }
 
     fun completeMission(id: String) {

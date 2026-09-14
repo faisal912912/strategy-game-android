@@ -188,6 +188,9 @@ private fun KingdomScreen(vm: GameViewModel) {
                     GameTab.MORE -> MoreScreen(vm)
                 }
             }
+            vm.battle?.let { battle ->
+                BattleOverlay(battle, vm::resolveBattleRound, vm::leaveBattle)
+            }
         }
     }
 }
@@ -357,7 +360,7 @@ private fun WorldScreen(vm: GameViewModel) {
                         Text(mission.title, fontWeight = FontWeight.Bold)
                         Text("${mission.difficulty} • ${mission.reward}", style = MaterialTheme.typography.bodySmall)
                     }
-                    FilledTonalButton(onClick = { vm.completeMission(mission.id) }, enabled = !mission.completed) {
+                    FilledTonalButton(onClick = { vm.startBattle(mission.id) }, enabled = !mission.completed) {
                         Text(if (mission.completed) "Done" else "Battle")
                     }
                 }
