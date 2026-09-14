@@ -14,6 +14,10 @@ jobs:
           distribution: temurin
           java-version: "17"
           cache: gradle
+      - uses: actions/cache@v4
+        with:
+          path: ~/.android/debug.keystore
+          key: frontier-beta-debug-signing-v1
       - name: Make Gradle executable
         run: chmod +x gradlew
       - name: Test and build debug APK
@@ -52,6 +56,7 @@ jobs:
           script: |
             ./gradlew connectedDebugAndroidTest
             mkdir -p app/build/device-screenshots
+            adb pull /sdcard/Pictures/FrontierQA app/build/device-screenshots/
             adb install -r app/build/outputs/apk/debug/app-debug.apk
             adb shell am start -W -n com.faisal.strategygame/.MainActivity
             sleep 2

@@ -1,6 +1,7 @@
 package com.faisal.strategygame.data
 
 import android.content.Context
+import com.faisal.strategygame.BuildConfig
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 import android.util.Base64
@@ -43,7 +44,7 @@ class FrontierApi(val origin: String, private val device: String) {
             connection.setRequestProperty("Accept", "application/json")
             connection.setRequestProperty("X-Device-ID", device)
             connection.setRequestProperty("X-Device-Kind", "android")
-            connection.setRequestProperty("X-Client-Version", "0.2.0")
+            connection.setRequestProperty("X-Client-Version", BuildConfig.VERSION_NAME)
             if (token.isNotBlank()) connection.setRequestProperty("Authorization", "Bearer $token")
             if (key != null) connection.setRequestProperty("X-Idempotency-Key", key)
             if (body != null) {

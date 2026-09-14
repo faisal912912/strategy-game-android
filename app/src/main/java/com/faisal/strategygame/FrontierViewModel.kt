@@ -20,10 +20,10 @@ import java.util.UUID
 data class CityJob(val kind: String, val label: String, val ends: Long, val claimPath: String = "", val claimId: Long = 0) {
     fun encode() = json("kind" to kind, "label" to label, "ends" to ends, "claimPath" to claimPath, "claimId" to claimId)
 }
-data class Command(val title: String, val path: String, val body: JSONObject, val jobKind: String = "", val key: String = UUID.randomUUID().toString()) {
-    fun encode() = json("title" to title, "path" to path, "body" to body, "jobKind" to jobKind, "key" to key)
+data class Command(val title: String, val path: String, val body: JSONObject, val jobKind: String = "", val key: String = UUID.randomUUID().toString(), val details: String = "") {
+    fun encode() = json("title" to title, "path" to path, "body" to body, "jobKind" to jobKind, "key" to key, "details" to details)
     companion object {
-        fun decode(j: JSONObject) = Command(j.getString("title"), j.getString("path"), j.getJSONObject("body"), j.optString("jobKind"), j.getString("key"))
+        fun decode(j: JSONObject) = Command(j.getString("title"), j.getString("path"), j.getJSONObject("body"), j.optString("jobKind"), j.getString("key"), j.optString("details"))
     }
 }
 class FrontierViewModel(app: Application) : AndroidViewModel(app) {
@@ -51,7 +51,13 @@ class FrontierViewModel(app: Application) : AndroidViewModel(app) {
     var scanY by mutableStateOf(250); private set
     val nodePath get() = "/world/v3/resources/scan?radius=100&x=$scanX&y=$scanY"
     val monsterPath get() = "/world/v4/monsters/scan?radius=150&x=$scanX&y=$scanY"
-    fun scan(x: Int, y: Int) { scanX = x.coerceIn(0, 499); scanY = y.coerceIn(0, 499); refresh() }
+    val cityPath get() = "/world/v2/scan?radius=30&x=$scanX&y=$scanY"
+    private var queuedRefresh = false
+    fun scan(x: Int, y: Int) {
+        val nx=x.coerceIn(0,499); val ny=y.coerceIn(0,499)
+        if (nx==scanX && ny==scanY) return
+        scanX=nx; scanY=ny; refresh()
+    }
     var reduceMotion by mutableStateOf(prefs.getBoolean("reduceMotion", false)); private set
     val canAct get() = signedIn && !busy && !refreshing && pending == null && lastSync > 0 && failedPaths.isEmpty()
     val me get() = doc("/me")
@@ -125,26 +131,37 @@ class FrontierViewModel(app: Application) : AndroidViewModel(app) {
     }
     fun selectTab(value: String) { tab = value; refresh() }
     fun refresh() {
-        if (!signedIn || busy || refreshing) return
+        if (!signedIn) return
+        if (busy || refreshing) { queuedRefresh = true; return }
         viewModelScope.launch { refreshData() }
     }
     private suspend fun refreshData() {
         if (refreshing) return
         refreshing = true
+        queuedRefresh = false
+        val snapshotTab = tab
         val paths = mutableListOf("/me", "/world/v3/gather/marches", "/world/v4/hunt/marches")
         paths += when (tab) {
             "city" -> listOf("/game/buildings", "/city/progression")
-            "army" -> listOf("/game/research", "/commanders", "/hospital", "/hospital/v2/status", "/hospital/v2/heal/jobs")
-            "world" -> listOf("/world/v2/state", nodePath, monsterPath, "/world/v4/pve/status", "/world/resources", "/world/monsters")
+            "army" -> listOf("/game/buildings", "/game/research", "/hospital", "/hospital/v2/status", "/hospital/v2/heal/jobs")
+            "heroes" -> listOf("/commanders", "/commanders/skills", "/equipment")
+            "shop" -> listOf("/shop/v3/catalog", "/shop/v3/orders", "/commerce/v2/wallet")
+            "world" -> listOf("/world/v2/state", cityPath, nodePath, monsterPath, "/world/v4/pve/status", "/world/resources", "/world/monsters")
             "missions" -> listOf("/daily/quests", "/progress/v2/daily", "/world/v4/hunt/reports", "/world/v3/gather/reports", "/mail")
             else -> listOf("/alliances/me", "/leaderboards/power", "/inventory")
         }
         try {
+            // The commanders endpoint initializes the starter hero on a new city.
+            // Skill ownership must be read after that transaction has completed.
+            val commanders = if(snapshotTab == "heroes") runCatching { api.request("/commanders") } else null
             val responses = coroutineScope { paths.map { path -> async {
-                try { Triple(path, api.request(path), null) }
+                try {
+                    if(path == "/commanders/skills") commanders?.getOrThrow()
+                    Triple(path, if(path == "/commanders" && commanders != null) commanders.getOrThrow() else api.request(path), null)
+                }
                 catch (e: Exception) { if (e is CancellationException) throw e; Triple(path, null, e) }
             } }.awaitAll() }
-            var next = documents
+            var next = documents.filterKeys { !(it.contains("/scan?") && it !in paths) }
             val failures = mutableSetOf<String>()
             for ((path, value, failure) in responses) {
                 if (value != null) next = next + (path to value)
@@ -154,7 +171,13 @@ class FrontierViewModel(app: Application) : AndroidViewModel(app) {
             if (signedIn) documents = next
             failedPaths = failures
             if (failures.isEmpty()) { lastSync = System.currentTimeMillis(); error = null }
-        } finally { refreshing = false; tick() }
+        } finally {
+            refreshing = false; tick()
+            if (signedIn && (queuedRefresh || snapshotTab != tab)) {
+                queuedRefresh = false
+                refreshData()
+            }
+        }
     }
     private fun persist() {
         if (scopeKey.isEmpty()) return

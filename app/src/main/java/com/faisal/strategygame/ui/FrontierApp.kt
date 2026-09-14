@@ -41,6 +41,9 @@ import java.text.NumberFormat
 import java.util.Locale
 
 private val labels = mapOf(
+    "deadly_focus" to "تركيز قاتل", "wall_of_iron" to "جدار الحديد", "royal_command" to "الأمر الملكي", "thunder_charge" to "اندفاع الرعد",
+    "guardian_armor" to "درع الحارس", "scout_boots" to "حذاء الكشّاف", "iron_sword" to "السيف الحديدي",
+    "food_pack_10k" to "صندوق 10 آلاف غذاء", "wood_pack_10k" to "صندوق 10 آلاف خشب", "stone_pack_5k" to "صندوق 5 آلاف حجر",
     "castle" to "القلعة", "barracks" to "ثكنة المشاة", "academy" to "الأكاديمية", "hospital" to "المستشفى",
     "farm" to "المزرعة", "lumber_mill" to "المنشرة", "quarry" to "المحجر", "gold_mine" to "منجم الذهب", "warehouse" to "المخزن",
     "stable" to "الإسطبل", "archery_range" to "ميدان الرماة", "food" to "غذاء", "wood" to "خشب", "stone" to "حجر", "gold" to "ذهب",
@@ -72,11 +75,11 @@ private fun Gate(vm: FrontierViewModel) {
     var gateway by rememberSaveable { mutableStateOf(vm.gateway) }
     var settings by rememberSaveable { mutableStateOf(false) }
     Column(Modifier.fillMaxSize().background(Ink).safeDrawingPadding().imePadding().verticalScroll(rememberScrollState())) {
-        CitadelScene(reduced=vm.reduceMotion)
+        ArtworkBanner(com.faisal.strategygame.R.drawable.town_board,"مملكتك تبدأ هنا","مدينة تنتظر حاكمها")
         Column(Modifier.padding(24.dp), verticalArrangement=Arrangement.spacedBy(14.dp)) {
             Text("حُدود المملكة", fontSize=34.sp, fontWeight=FontWeight.Black, color=Gold)
             Text("ابنِ مدينتك. جهّز جيشك. اكتشف العالم.", color=Mint)
-            Text("المملكة الأولى • بيتا 0.2", style=MaterialTheme.typography.labelLarge)
+            Text("المملكة الأولى • بيتا 0.3", style=MaterialTheme.typography.labelLarge)
             Row(horizontalArrangement=Arrangement.spacedBy(8.dp)) {
                 FilterChip(!register,{register=false},label={Text("دخول")},enabled=!vm.busy)
                 FilterChip(register,{register=true},label={Text("حساب جديد")},enabled=!vm.busy)
@@ -125,33 +128,42 @@ private fun Kingdom(vm: FrontierViewModel) {
         }
     }, bottomBar={
         NavigationBar(containerColor=Slate) {
-            val tabs=listOf(Triple("city","المدينة",Icons.Default.Home),Triple("army","الجيش",Icons.Default.Shield),Triple("world","العالم",Icons.Default.Public),Triple("missions","السجل",Icons.Default.Assignment),Triple("more","المزيد",Icons.Default.Menu))
-            tabs.forEach { (key,label,icon) -> NavigationBarItem(vm.tab==key,{if(!vm.busy&&!vm.refreshing) vm.selectTab(key)},icon={Icon(icon,label)},label={Text(label)},alwaysShowLabel=true) }
+            val tabs=listOf(Triple("city","المدينة",Icons.Default.Castle),Triple("world","المملكة",Icons.Default.Public),Triple("heroes","الأبطال",Icons.Default.Person),Triple("army","الجيش",Icons.Default.Shield),Triple("shop","المتجر",Icons.Default.Redeem),Triple("more","المزيد",Icons.Default.Menu))
+            tabs.forEach { (key,label,icon) -> NavigationBarItem(vm.tab==key,{if(!vm.busy) vm.selectTab(key)},icon={Icon(icon,label)},label={Text(label,fontSize=10.sp)},alwaysShowLabel=true) }
         }
     }) { padding ->
-        LazyColumn(Modifier.padding(padding).fillMaxSize(),contentPadding=PaddingValues(16.dp),verticalArrangement=Arrangement.spacedBy(12.dp)) {
-            vm.error?.let { item { Notice(it,true) } }
-            vm.pending?.let { c -> item { Panel {
-                Text("بانتظار تأكيد الأمر",color=Gold,fontWeight=FontWeight.Bold)
-                Text(c.title)
-                Text("لم نتلقَ تأكيدًا نهائيًا. أعد التحقق من نفس الأمر قبل إصدار أمر جديد.",style=MaterialTheme.typography.bodySmall)
-                ActionButton("تحقق من التنفيذ",!vm.busy&&!vm.refreshing) {vm.retryPending()}
-            } } }
-            if(vm.jobs.isNotEmpty()) item { Jobs(vm,ask) }
-            item {
-                AnimatedContent(vm.tab,label="page",transitionSpec={fadeIn() togetherWith fadeOut()}) { tab ->
-                    Column(verticalArrangement=Arrangement.spacedBy(12.dp)) {
-                        when(tab) {
-                            "city" -> City(vm,ask)
-                            "army" -> Army(vm,ask)
-                            "world" -> World(vm,ask)
-                            "missions" -> Journal(vm,ask) { a,b -> detail=a to b }
-                            else -> More(vm,ask)
+        Column(Modifier.padding(padding).fillMaxSize()) {
+            vm.error?.let { Notice(it,true) }
+            vm.pending?.let { c -> Row(Modifier.fillMaxWidth().background(Slate).padding(horizontal=12.dp),verticalAlignment=Alignment.CenterVertically) {
+                Text("بانتظار تأكيد: ${c.title}",Modifier.weight(1f),fontSize=12.sp,color=Gold)
+                TextButton({vm.retryPending()},enabled=!vm.busy&&!vm.refreshing){Text("تحقق")}
+            } }
+            if(vm.jobs.isNotEmpty()) {
+                var expanded by rememberSaveable {mutableStateOf(false)}
+                Row(Modifier.fillMaxWidth().background(Slate).clickable{expanded=!expanded}.padding(horizontal=14.dp,vertical=7.dp),verticalAlignment=Alignment.CenterVertically) {
+                    Icon(Icons.Default.Schedule,null,tint=Mint,modifier=Modifier.size(18.dp));Spacer(Modifier.width(8.dp))
+                    Text("${vm.jobs.size} أعمال • ${vm.jobs.first().label}",Modifier.weight(1f),fontSize=11.sp)
+                    Text(countdown(vm.jobs.first().ends,vm.now),color=Gold,fontSize=12.sp);Icon(Icons.Default.ExpandMore,"تفاصيل الأعمال")
+                }
+                if(expanded) Box(Modifier.heightIn(max=220.dp).verticalScroll(rememberScrollState())) {Jobs(vm,ask)}
+            }
+            when(vm.tab) {
+                "city" -> TownScreen(vm,ask)
+                "world" -> KingdomMap(vm,ask)
+                else -> LazyColumn(Modifier.fillMaxSize(),contentPadding=PaddingValues(16.dp),verticalArrangement=Arrangement.spacedBy(12.dp)) {
+                    item {
+                        Column(verticalArrangement=Arrangement.spacedBy(12.dp)) {
+                            when(vm.tab) {
+                                "army" -> MilitaryScreen(vm,ask)
+                                "heroes" -> HeroesScreen(vm,ask)
+                                "shop" -> ShopScreen(vm,ask)
+                                "missions" -> Journal(vm,ask) {a,b->detail=a to b}
+                                else -> {ActionButton("المهام والسجل") {vm.selectTab("missions")};More(vm,ask)}
+                            }
                         }
                     }
                 }
             }
-            item { Text(if(vm.lastSync==0L) "جارٍ تحميل المدينة…" else "آخر مزامنة منذ ${((System.currentTimeMillis()-vm.lastSync)/1000).coerceAtLeast(0)} ث • بيتا 0.2",style=MaterialTheme.typography.labelSmall,color=Color(0xFF8196A6)) }
         }
     }
     confirmation?.let { command -> AlertDialog(onDismissRequest={confirmation=null},title={Text(command.title)},text={Text(commandDescription(command))},
@@ -165,7 +177,7 @@ private fun Kingdom(vm: FrontierViewModel) {
         Text("عادت القوات الناجية. يمكنك علاج الجرحى من شاشة الجيش.",style=MaterialTheme.typography.bodySmall)
     }},confirmButton={TextButton({vm.dismissBattle()}){Text("العودة إلى المملكة")}}) }
 }
-private fun commandDescription(c: Command): String = when {
+private fun commandDescription(c: Command): String = if(c.details.isNotEmpty()) c.details else when {
     c.path.endsWith("/hunt/start") || c.path.endsWith("/monsters/hunt") -> "ستغادر القوات المحددة المدينة. يحسب السيرفر النتيجة والخسائر؛ قد تحتاج القوات المصابة إلى العلاج."
     c.path.endsWith("/recall") -> "تبدأ رحلة العودة. الاستدعاء يلغي حمولة الجمع الحالية."
     c.path=="/game/buildings/upgrade" -> "ستُخصم تكلفة الترقية الموضحة. يمكنك مواصلة اللعب أثناء البناء."
@@ -200,58 +212,7 @@ private fun Jobs(vm: FrontierViewModel, ask: (Command)->Unit) { Panel {
     }
 } }
 @Composable
-private fun City(vm: FrontierViewModel, ask: (Command)->Unit) {
-    val level=vm.me.obj("city").optInt("level",1)
-    Box(Modifier.clip(RoundedCornerShape(20.dp))) {
-        CitadelScene(reduced=vm.reduceMotion,level=level)
-        Text("مدينتك • المستوى $level",Modifier.align(Alignment.BottomStart).padding(16.dp).background(Ink.copy(.8f),RoundedCornerShape(8.dp)).padding(8.dp),fontWeight=FontWeight.Bold)
-    }
-    val progression=vm.doc("/city/progression")
-    Panel {
-        Text("رحلة الحاكم",color=Gold,fontWeight=FontWeight.Bold)
-        Text("طوّر المباني، درّب القوات ثم اجمع الموارد لتمويل رحلتك التالية.")
-        Text("خبرة المدينة ${num(progression.optLong("xp"))} / ${num(progression.optLong("xp_for_next_level"))}")
-        LinearProgressIndicator(progress={ (progression.optDouble("xp",0.0)/progression.optDouble("xp_for_next_level",1.0).coerceAtLeast(1.0)).toFloat().coerceIn(0f,1f) },modifier=Modifier.fillMaxWidth())
-        if(progression.optBoolean("can_upgrade")) ActionButton("ترقية المدينة",vm.canAct){ask(Command("ترقية المدينة","/city/progression/upgrade",JSONObject()))}
-    }
-    Section("حيّ البناء","اضغط على الترقية لمراجعة الأمر قبل إنفاق الموارد.")
-    vm.doc("/game/buildings").rows("buildings").forEach { b ->
-        val type=b.optString("type"); val next=b.optInt("level")+1
-        Panel {
-            Row(verticalAlignment=Alignment.CenterVertically) {
-                Icon(if(type=="castle") Icons.Default.Castle else Icons.Default.Domain,null,tint=Gold,modifier=Modifier.size(32.dp))
-                Spacer(Modifier.width(12.dp));Column {Text(title(type),fontWeight=FontWeight.Bold);Text("المستوى ${b.optInt("level")}",color=Mint)}
-            }
-            Text("${num(next*700L)} غذاء · ${num(next*700L)} خشب · ${num(next*350L)} حجر · ${num(next*100L)} ذهب",style=MaterialTheme.typography.bodySmall)
-            val res=vm.me.obj("resources")
-            val enough=res.optLong("food")>=next*700 && res.optLong("wood")>=next*700 && res.optLong("stone")>=next*350 && res.optLong("gold")>=next*100
-            ActionButton(if(next>30) "وصل للمستوى الأقصى" else if(!enough) "الموارد غير كافية" else "ترقية • ${next*30} ثانية",vm.canAct&&enough&&next<=30&&vm.jobs.none{it.kind=="build"}) {
-                ask(Command("ترقية ${title(type)}","/game/buildings/upgrade",json("building" to type),"build"))
-            }
-        }
-    }
-    Panel {
-        Text("استلام أعمال بدأت من جهاز آخر",fontWeight=FontWeight.Bold)
-        Text("السيرفر يحتفظ بالأعمال. إذا لم يظهر مؤقتها هنا، اطلب استلامها بعد انتهاء وقتها.",style=MaterialTheme.typography.bodySmall)
-        TextButton({ask(Command("استلام البناء المكتمل","/game/buildings/claim",JSONObject()))},enabled=vm.canAct){Text("استلام البناء")}
-    }
-}
-@Composable
-private fun Army(vm: FrontierViewModel, ask: (Command)->Unit) {
-    var troop by rememberSaveable { mutableStateOf("infantry") };var amount by rememberSaveable{mutableStateOf("100")}
-    Section("قوات المملكة","القوات المتاحة في المدينة؛ قوات المسيرات تظهر في شاشة العالم.")
-    Panel {
-        val army=vm.me.obj("army")
-        Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween) { listOf("infantry","cavalry","archers").forEach {t->Column {Text(title(t));Text(num(army.optLong(t)),color=Gold,fontSize=22.sp,fontWeight=FontWeight.Bold)} } }
-        Row(Modifier.horizontalScroll(rememberScrollState())) {listOf("infantry","cavalry","archers").forEach { t->FilterChip(troop==t,{troop=t},label={Text(title(t))},modifier=Modifier.padding(end=6.dp))}}
-        OutlinedTextField(amount,{amount=it.filter(Char::isDigit).take(5)},Modifier.fillMaxWidth(),label={Text("عدد القوات • الفئة الأولى")},keyboardOptions=KeyboardOptions(keyboardType=KeyboardType.Number),singleLine=true)
-        val count=amount.toLongOrNull() ?: 0;val res=vm.me.obj("resources")
-        Text("${num(count*10)} غذاء · ${num(count*5)} خشب · ${num(count*2)} ذهب",color=Mint,style=MaterialTheme.typography.bodySmall)
-        ActionButton("تدريب ${num(count)} ${title(troop)} • ${maxOf(10,count/10)} ث",vm.canAct&&count in 1..10000&&vm.jobs.none{it.kind=="train"}&&res.optLong("food")>=count*10&&res.optLong("wood")>=count*5&&res.optLong("gold")>=count*2) {
-            ask(Command("تدريب ${num(count)} ${title(troop)}","/game/training/start",json("type" to troop,"tier" to 1,"amount" to count),"train"))
-        }
-        TextButton({ask(Command("استلام التدريب المكتمل","/game/training/claim",JSONObject()))},enabled=vm.canAct){Text("استلام تدريب سابق")}
-    }
+fun ArmySupport(vm: FrontierViewModel, ask: (Command)->Unit) {
     Section("مستشفى الحملات")
     Panel {
         val h=vm.doc("/hospital");val w=h.obj("wounded");val total=listOf("infantry","cavalry","archers").sumOf{w.optLong(it)}
@@ -273,16 +234,10 @@ private fun Army(vm: FrontierViewModel, ask: (Command)->Unit) {
         ActionButton("تطوير البحث",vm.canAct&&r.optInt("level")<r.optInt("max_level")&&vm.jobs.none{it.kind=="research"}){ask(Command("بحث ${title(r.optString("key"))}","/game/research/start",json("key" to r.getString("key")),"research"))}
     } }
     TextButton({ask(Command("استلام البحث المكتمل","/game/research/claim",JSONObject()))},enabled=vm.canAct){Text("استلام بحث سابق")}
-    Section("القادة")
-    vm.doc("/commanders").rows("commanders").forEach {c->Panel {
-        Row(verticalAlignment=Alignment.CenterVertically){Icon(Icons.Default.Person,null,tint=Gold,modifier=Modifier.size(40.dp));Column(Modifier.padding(start=12.dp)){Text(c.optString("name"),fontWeight=FontWeight.Bold);Text("هجوم +${c.optInt("attack_bonus_percent")}% · دفاع +${c.optInt("defense_bonus_percent")}%",color=Mint)}}
-        if(c.optBoolean("owned")) Text("ضمن قواتك • المستوى ${c.optInt("level")}",color=Gold)
-        else ActionButton("تجنيد • ${num(c.optLong("recruit_cost_gold"))} ذهب",vm.canAct&&vm.me.obj("resources").optLong("gold")>=c.optLong("recruit_cost_gold")){ask(Command("تجنيد ${c.optString("name")}","/commanders/recruit",json("key" to c.getString("key"))))}
-    } }
 }
 
 @Composable
-private fun World(vm: FrontierViewModel, ask: (Command)->Unit) {
+fun World(vm: FrontierViewModel, ask: (Command)->Unit) {
     var frontier by rememberSaveable { mutableStateOf(false) }
     var x by rememberSaveable {mutableStateOf("250")};var y by rememberSaveable {mutableStateOf("250")}
     var selection by remember { mutableStateOf<JSONObject?>(null) }
@@ -346,7 +301,7 @@ private fun TargetCard(name: String,level: Int,x:Int,y:Int,summary:String,enable
     ActionButton("تجهيز الحملة",enabled,onSelect)
 } }
 @Composable
-private fun ArmyDispatch(vm: FrontierViewModel,target:JSONObject,type:String,onDismiss:()->Unit,submit:(Command)->Unit) {
+fun ArmyDispatch(vm: FrontierViewModel,target:JSONObject,type:String,onDismiss:()->Unit,submit:(Command)->Unit) {
     var inf by remember {mutableStateOf("0")};var cav by remember {mutableStateOf("0")};var arc by remember {mutableStateOf("0")}
     val army=vm.me.obj("army");val i=inf.toLongOrNull()?:0;val c=cav.toLongOrNull()?:0;val a=arc.toLongOrNull()?:0
     val valid=i+c+a>0 && i<=army.optLong("infantry")&&c<=army.optLong("cavalry")&&a<=army.optLong("archers")
