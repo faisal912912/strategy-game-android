@@ -20,6 +20,14 @@ jobs:
           key: frontier-beta-debug-signing-v1
       - name: Make Gradle executable
         run: chmod +x gradlew
+      - name: Prepare Gradle distribution with bounded network retries
+        run: |
+          chmod +x gradlew
+          for attempt in 1 2 3; do
+            if ./gradlew --version; then exit 0; fi
+            sleep 3
+          done
+          exit 1
       - name: Test and build debug APK
         run: ./gradlew testDebugUnitTest lintDebug assembleDebug
       - uses: actions/upload-artifact@v4
@@ -42,6 +50,14 @@ jobs:
           distribution: temurin
           java-version: "17"
           cache: gradle
+      - name: Prepare Gradle distribution with bounded network retries
+        run: |
+          chmod +x gradlew
+          for attempt in 1 2 3; do
+            if ./gradlew --version; then exit 0; fi
+            sleep 3
+          done
+          exit 1
       - name: Enable KVM
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules

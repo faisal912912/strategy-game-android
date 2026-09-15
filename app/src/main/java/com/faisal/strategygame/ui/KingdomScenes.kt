@@ -40,6 +40,7 @@ import kotlin.math.*
 data class BuildingSpot(val key:String,val x:Float,val y:Float)
 val townSpots=listOf(BuildingSpot("castle",500f,390f),BuildingSpot("barracks",215f,355f),BuildingSpot("archery_range",795f,350f),BuildingSpot("stable",790f,523f),BuildingSpot("hospital",236f,520f),BuildingSpot("academy",500f,595f),BuildingSpot("warehouse",500f,780f),BuildingSpot("farm",210f,717f),BuildingSpot("lumber_mill",260f,190f),BuildingSpot("quarry",718f,207f),BuildingSpot("gold_mine",808f,735f))
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TownScreen(vm:FrontierViewModel,ask:(Command)->Unit) {
     var selected by rememberSaveable {mutableStateOf<String?>(null)}
@@ -59,15 +60,22 @@ fun TownScreen(vm:FrontierViewModel,ask:(Command)->Unit) {
 
     }
     selected?.let { key -> val b=buildings.firstOrNull{it.optString("type")==key}
-        AlertDialog(onDismissRequest={selected=null},title={Text(title(key))},text={Column(Modifier.verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(12.dp)) {
-            BuildingPortrait(key,Modifier.fillMaxWidth().height(165.dp))
-            if(b!=null) BuildingDetails(vm,b) { selected=null;ask(it) } else Text("جارٍ تحميل مستوى المبنى…")
-            when(key) {
-                "barracks","stable","archery_range","academy","hospital"-> TextButton({selected=null;vm.selectTab("army")}) {Text("فتح التدريب والعلاج والأبحاث")}
-                "warehouse"->TextButton({selected=null;vm.selectTab("more")}) {Text("فتح الحقيبة")}
+        ModalBottomSheet(onDismissRequest={selected=null},sheetState=rememberModalBottomSheetState(skipPartiallyExpanded=true),containerColor=Slate,contentColor=Parchment) {
+            Column(Modifier.fillMaxWidth().heightIn(max=650.dp).verticalScroll(rememberScrollState()).padding(horizontal=20.dp).navigationBarsPadding().padding(bottom=20.dp),verticalArrangement=Arrangement.spacedBy(12.dp)) {
+                Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
+                    Text(title(key),Modifier.weight(1f),fontSize=26.sp,fontWeight=FontWeight.Black,color=Gold)
+                    TextButton({selected=null}){Text("إغلاق")}
+                }
+                BuildingPortrait(key,Modifier.fillMaxWidth().height(180.dp))
+                if(b!=null) BuildingDetails(vm,b) { selected=null;ask(it) } else Text("جارٍ تحميل مستوى المبنى…")
+                when(key) {
+                    "barracks","stable","archery_range","academy","hospital"-> TextButton({selected=null;vm.selectTab("army")}) {Text("فتح التدريب والعلاج والأبحاث")}
+                    "warehouse"->TextButton({selected=null;vm.selectTab("more")}) {Text("فتح الحقيبة")}
+                }
             }
-        }},confirmButton={TextButton({selected=null}){Text("إغلاق")}})
+        }
     }
+
     if(ledger) AlertDialog(onDismissRequest={ledger=false},title={Text("سجل المدينة")},text={Column(Modifier.verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(12.dp)) {
         val p=vm.doc("/city/progression")
         Text("خبرة المدينة ${num(p.optLong("xp"))} / ${num(p.optLong("xp_for_next_level"))}",color=Gold)
