@@ -57,6 +57,8 @@ internal fun captureTestScreenshot(compose:ComposeContentTestRule,name:String) {
         compose.waitForIdle()
         val instrumentation=InstrumentationRegistry.getInstrumentation()
         instrumentation.waitForIdleSync()
+        // Compose can be idle before native IME/window transitions finish presenting.
+        instrumentation.uiAutomation.waitForIdle(300,3000)
         // Capture the composed display, including separate dialog/bottom-sheet windows.
         val bitmap=checkNotNull(instrumentation.uiAutomation.takeScreenshot())
         val resolver=instrumentation.targetContext.contentResolver
