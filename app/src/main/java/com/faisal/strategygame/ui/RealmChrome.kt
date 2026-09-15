@@ -146,3 +146,5 @@ fun ChoiceTabs(options:List<Pair<String,String>>,selected:String,onSelect:(Strin
     Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).background(Ink).border(1.dp,Bronze.copy(.45f),RoundedCornerShape(10.dp)).padding(4.dp),horizontalArrangement=Arrangement.spacedBy(4.dp)) {
         options.forEach{(key,label)->Box(Modifier.weight(1f).clip(RoundedCornerShape(7.dp)).background(if(selected==key) Emerald else Color.Transparent).clickable{onSelect(key)}.padding(vertical=11.dp),contentAlignment=Alignment.Center){Text(label,color=if(selected==key) Color.White else Parchment.copy(.65f),fontSize=12.sp,fontWeight=FontWeight.Bold,maxLines=1)} }
 }
+
+}
