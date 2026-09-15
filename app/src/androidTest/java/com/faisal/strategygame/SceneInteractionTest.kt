@@ -7,7 +7,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.junit4.ComposeContentTestRule
@@ -55,8 +54,12 @@ class SceneInteractionTest {
 }
 
 internal fun captureTestScreenshot(compose:ComposeContentTestRule,name:String) {
-        val bitmap=compose.onAllNodes(isRoot()).onLast().captureToImage().asAndroidBitmap()
-        val resolver=InstrumentationRegistry.getInstrumentation().targetContext.contentResolver
+        compose.waitForIdle()
+        val instrumentation=InstrumentationRegistry.getInstrumentation()
+        instrumentation.waitForIdleSync()
+        // Capture the composed display, including separate dialog/bottom-sheet windows.
+        val bitmap=checkNotNull(instrumentation.uiAutomation.takeScreenshot())
+        val resolver=instrumentation.targetContext.contentResolver
         val uri=resolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI,ContentValues().apply{
             put(MediaStore.Images.Media.DISPLAY_NAME,"$name.png")
             put(MediaStore.Images.Media.MIME_TYPE,"image/png")
