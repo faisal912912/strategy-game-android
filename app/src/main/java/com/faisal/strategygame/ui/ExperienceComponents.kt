@@ -70,7 +70,7 @@ fun ActivityStrip(vm:FrontierViewModel,onOpen:()->Unit) {
     val next=vm.jobs.minByOrNull{it.ends}!!
     Row(Modifier.fillMaxWidth().background(Ink).testTag("activity-strip").clickable(onClick=onOpen).padding(horizontal=14.dp,vertical=8.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(8.dp)) {
         Icon(if(ready>0) Icons.Default.CheckCircle else Icons.Default.Schedule,null,tint=if(ready>0) Mint else Gold,modifier=Modifier.size(20.dp))
-        Text(if(ready>0) "$ready أعمال جاهزة للاستلام" else next.label,Modifier.weight(1f),fontSize=12.sp,color=Parchment,maxLines=1,overflow=TextOverflow.Ellipsis)
+        Text(if(ready>0) "$ready أعمال جاهزة للاستلام" else jobName(next),Modifier.weight(1f),fontSize=12.sp,color=Parchment,maxLines=1,overflow=TextOverflow.Ellipsis)
         Text(if(ready>0) "استعراض" else countdown(next.ends,vm.now),color=Gold,fontSize=11.sp,fontWeight=FontWeight.Bold)
         Icon(Icons.Default.ChevronLeft,"تفاصيل الأعمال",tint=Gold,modifier=Modifier.size(18.dp))
     }

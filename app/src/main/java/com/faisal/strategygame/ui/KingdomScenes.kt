@@ -60,6 +60,7 @@ fun TownScreen(vm:FrontierViewModel,ask:(Command)->Unit) {
             SceneButton(Icons.Default.Widgets,"قائمة المدينة"){toolsOpen=true}
             DropdownMenu(toolsOpen,{toolsOpen=false}) {
                 DropdownMenuItem(text={Text("سجل المباني")},leadingIcon={Icon(Icons.Default.AccountBalance,null)},onClick={toolsOpen=false;ledger=true})
+                DropdownMenuItem(text={Text("المستودع والتسريعات")},leadingIcon={Icon(Icons.Default.Inventory2,null)},onClick={toolsOpen=false;vm.selectTab("warehouse")})
                 DropdownMenuItem(text={Text(if(showLabels) "إخفاء أسماء المباني" else "إظهار أسماء المباني")},leadingIcon={Icon(Icons.Default.Label,null)},onClick={showLabels=!showLabels;toolsOpen=false})
                 DropdownMenuItem(text={Text("المهام والمكافآت")},leadingIcon={Icon(Icons.Default.Assignment,null)},onClick={toolsOpen=false;vm.selectTab("missions")})
                 DropdownMenuItem(text={Text("باقات المملكة")},leadingIcon={Icon(Icons.Default.Redeem,null)},onClick={toolsOpen=false;vm.selectTab("shop")})
@@ -82,7 +83,7 @@ fun TownScreen(vm:FrontierViewModel,ask:(Command)->Unit) {
                 if(b!=null) BuildingDetails(vm,b) { selected=null;ask(it) } else Text("جارٍ تحميل مستوى المبنى…")
                 when(key) {
                     "barracks","stable","archery_range","academy","hospital"-> TextButton({selected=null;vm.selectTab("army")}) {Text("فتح التدريب والعلاج والأبحاث")}
-                    "warehouse"->TextButton({selected=null;vm.selectTab("more")}) {Text("فتح الحقيبة")}
+                    "warehouse"->TextButton({selected=null;vm.selectTab("warehouse")}) {Text("فتح المستودع والتسريعات")}
                 }
             }
         }
@@ -99,8 +100,9 @@ fun TownScreen(vm:FrontierViewModel,ask:(Command)->Unit) {
 
 @Composable
 fun TownBoard(levels:Map<String,Int>,buildLabel:String?,reduced:Boolean,showLabels:Boolean=true,onBuilding:(String)->Unit) {
-    var camera by rememberSaveable(stateSaver=CameraSaver) {mutableStateOf(MapCamera(500f,470f,1.35f))}
+    var camera by rememberSaveable(stateSaver=CameraSaver) {mutableStateOf(MapCamera(500f,470f,2.4f))}
     val board=ImageBitmap.imageResource(R.drawable.town_board)
+    val terrain=ImageBitmap.imageResource(R.drawable.world_terrain)
     val phase=scenePhase(reduced)
     BoxWithConstraints(Modifier.fillMaxSize().background(Color(0xFF253D31)).clipToBoundsCompat().testTag("town-board").pointerInput(Unit) {detectTransformGestures {centroid,pan,zoom,_->
             val w=size.width.toFloat();val h=size.height.toFloat();val base=w/1000f
@@ -111,6 +113,7 @@ fun TownBoard(levels:Map<String,Int>,buildLabel:String?,reduced:Boolean,showLabe
         val base=w/1000f;val scale=base*camera.zoom
         fun pos(x:Float,y:Float)=Offset(w/2+(x-camera.x)*scale,h/2+(y-camera.y)*scale)
         Canvas(Modifier.fillMaxSize()) {
+            drawImage(terrain,dstSize=IntSize(size.width.toInt(),size.height.toInt()),filterQuality=FilterQuality.Medium)
             val origin=pos(0f,0f);val side=(1000*scale).roundToInt()
             drawImage(board,dstOffset=IntOffset(origin.x.roundToInt(),origin.y.roundToInt()),dstSize=IntSize(side,side),filterQuality=FilterQuality.Medium)
             // Decorative atmosphere stays separate from authoritative game state.
@@ -138,8 +141,8 @@ fun TownBoard(levels:Map<String,Int>,buildLabel:String?,reduced:Boolean,showLabe
                 if(p.x in -90f..w+90&&p.y in -100f..h+100) {
                     Column(Modifier.align(AbsoluteAlignment.TopLeft).absoluteOffset{IntOffset((p.x-with(density){50.dp.toPx()}).roundToInt(),(p.y-with(density){86.dp.toPx()}).roundToInt())}.width(100.dp).height(110.dp).clip(RoundedCornerShape(12.dp)).clickable {onBuilding(spot.key)}.testTag("building-${spot.key}").semantics{contentDescription=title(spot.key)},horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.Bottom) {
                         Row(Modifier.clip(RoundedCornerShape(6.dp)).background(Ink.copy(.88f)).border(.7.dp,Bronze.copy(.8f),RoundedCornerShape(6.dp)).padding(horizontal=5.dp,vertical=3.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(4.dp)) {
-                            if(showLabels) Text(title(spot.key),fontSize=9.sp,color=Parchment,fontWeight=FontWeight.Bold,maxLines=1,modifier=Modifier.weight(1f,false))
-                            Text(levels[spot.key]?.toString()?:"…",Modifier.background(Emerald,RoundedCornerShape(3.dp)).padding(horizontal=4.dp,vertical=1.dp),fontSize=9.sp,color=Gold,fontWeight=FontWeight.Bold)
+                            if(showLabels) Text(title(spot.key),fontSize=11.sp,color=Parchment,fontWeight=FontWeight.Bold,maxLines=1,modifier=Modifier.weight(1f,false))
+                            Text(levels[spot.key]?.toString()?:"…",Modifier.background(Emerald,RoundedCornerShape(3.dp)).padding(horizontal=4.dp,vertical=1.dp),fontSize=11.sp,color=Gold,fontWeight=FontWeight.Bold)
                         }
                     }
                 }
@@ -148,7 +151,15 @@ fun TownBoard(levels:Map<String,Int>,buildLabel:String?,reduced:Boolean,showLabe
         Column(Modifier.align(Alignment.BottomEnd).padding(end=10.dp,bottom=94.dp),verticalArrangement=Arrangement.spacedBy(8.dp)) {
             SceneButton(Icons.Default.Add,"تكبير المدينة") {camera=camera.copy(zoom=(camera.zoom*1.25f).coerceAtMost(4f))}
             SceneButton(Icons.Default.Remove,"تصغير المدينة") {camera=camera.copy(zoom=(camera.zoom/1.25f).coerceAtLeast(.5f))}
-            SceneButton(Icons.Default.CenterFocusStrong,"مركز المدينة") {camera=MapCamera(500f,470f,1.35f)}
+            SceneButton(Icons.Default.CenterFocusStrong,"مركز المدينة") {camera=MapCamera(500f,470f,2.4f)}
+        }
+        Column(Modifier.align(Alignment.BottomStart).padding(start=12.dp,bottom=150.dp),horizontalAlignment=Alignment.CenterHorizontally) {
+            Canvas(Modifier.size(76.dp).clip(RoundedCornerShape(12.dp)).border(2.dp,Bronze,RoundedCornerShape(12.dp)).testTag("town-minimap").pointerInput(Unit){detectTapGestures {camera=camera.copy(x=(it.x/size.width*1000).coerceIn(0f,1000f),y=(it.y/size.height*1000).coerceIn(0f,1000f))}}) {
+                drawImage(board,dstSize=IntSize(size.width.toInt(),size.height.toInt()))
+                val c=Offset(camera.x/1000*size.width,camera.y/1000*size.height)
+                drawCircle(Gold,4.dp.toPx(),c,style=Stroke(2.dp.toPx()))
+            }
+            Text("اسحب للتنقل",color=Parchment,fontSize=10.sp,modifier=Modifier.background(Ink.copy(.8f),RoundedCornerShape(4.dp)).padding(4.dp))
         }
         buildLabel?.let {Text(it,Modifier.align(Alignment.BottomStart).padding(start=10.dp,bottom=90.dp).background(Ink.copy(.9f),RoundedCornerShape(12.dp)).padding(10.dp),fontSize=12.sp,color=Gold)}
     }
@@ -202,17 +213,22 @@ fun KingdomMap(vm:FrontierViewModel,ask:(Command)->Unit) {
     var camera by rememberSaveable(stateSaver=CameraSaver) {mutableStateOf(MapCamera(vm.scanX.toFloat(),vm.scanY.toFloat()))}
     var located by rememberSaveable {mutableStateOf(false)}
     var mapTools by remember {mutableStateOf(false)}
+    var landmarksOpen by remember {mutableStateOf(false)}
     val location=vm.doc("/world/v2/state")
     LaunchedEffect(location.toString()) {if(!located&&location.has("x")){camera=MapCamera(location.getInt("x").toFloat(),location.getInt("y").toFloat());located=true;vm.scan(camera.x.roundToInt(),camera.y.roundToInt())}}
     LaunchedEffect(camera.x.roundToInt(),camera.y.roundToInt()) {delay(650);vm.scan(camera.x.roundToInt(),camera.y.roundToInt())}
     val nodes=vm.doc(vm.nodePath).rows("nodes");val monsters=vm.doc(vm.monsterPath).rows("monsters")
-    val pins=vm.doc(vm.cityPath).rows("cities").map {WorldPin("city-${it.optLong("player_id")}","city",it.optInt("x").toFloat(),it.optInt("y").toFloat(),it.optString("username"),0,it)}+
+    val pins=remember(vm.documents,vm.scanX,vm.scanY) {vm.doc(vm.cityPath).rows("cities").map {WorldPin("city-${it.optLong("player_id")}","city",it.optInt("x").toFloat(),it.optInt("y").toFloat(),it.optString("username"),0,it)}+
         nodes.filter{it.optString("status")=="active"}.map{WorldPin("node-${it.optLong("id")}","gather",it.optInt("x").toFloat(),it.optInt("y").toFloat(),title(it.optString("node_type")),it.optInt("level"),it)}+
-        monsters.filter{it.optString("status")=="active"}.map{WorldPin("monster-${it.optLong("id")}","hunt",it.optInt("x").toFloat(),it.optInt("y").toFloat(),it.optString("name"),it.optInt("level"),it)}
+        monsters.filter{it.optString("status")=="active"}.map{WorldPin("monster-${it.optLong("id")}","hunt",it.optInt("x").toFloat(),it.optInt("y").toFloat(),it.optString("name"),it.optInt("level"),it)}+
+        vm.doc("/expansion/v1/world").rows("cities").map{WorldPin("npc-${it.optInt("id")}","city",it.optInt("x").toFloat(),it.optInt("y").toFloat(),it.optString("name"),it.optInt("level"),it)}+
+        vm.doc("/expansion/v1/world").rows("landmarks").map{WorldPin("landmark-${it.optInt("id")}","landmark",it.optInt("x").toFloat(),it.optInt("y").toFloat(),it.optString("name"),it.optInt("castle_level"),it)}}
+    val filtered=remember(pins,filter){pins.filter{filter=="all"||it.kind==filter}}
     Box(Modifier.fillMaxSize()) {
-        WorldBoard(camera,{camera=it},pins.filter{filter=="all"||it.kind==filter},vm.reduceMotion){selected=it}
+        WorldBoard(camera,{camera=it},filtered,vm.reduceMotion){selected=it}
         Column(Modifier.align(Alignment.TopCenter).statusBarsPadding().padding(top=104.dp,start=12.dp,end=12.dp),verticalArrangement=Arrangement.spacedBy(6.dp)) {
-            ChoiceTabs(listOf("all" to "الكل","city" to "المدن","gather" to "الموارد","hunt" to "الوحوش"),filter){filter=it}
+            ChoiceTabs(listOf("all" to "الكل","city" to "المدن","gather" to "الموارد","hunt" to "الوحوش","landmark" to "المعالم"),filter){filter=it}
+            if(vm.expansionAvailable) Text("${vm.doc("/expansion/v1/world").optInt("npc_count")} مدينة غير لاعبة • 12 معلمًا",color=Gold,fontSize=10.sp,modifier=Modifier.background(Ink.copy(.8f),RoundedCornerShape(5.dp)).padding(5.dp))
         }
         Box(Modifier.align(Alignment.BottomStart).padding(start=12.dp,bottom=80.dp)) {
             KingdomMinimap(camera,pins){camera=MapCamera(it.x,it.y,camera.zoom)}
@@ -220,6 +236,7 @@ fun KingdomMap(vm:FrontierViewModel,ask:(Command)->Unit) {
         Column(Modifier.align(Alignment.CenterEnd).padding(10.dp),verticalArrangement=Arrangement.spacedBy(8.dp)) {
             SceneButton(Icons.Default.Search,"بحث بالإحداثيات"){x=camera.x.roundToInt().toString();y=camera.y.roundToInt().toString();coordinates=true}
             SceneButton(Icons.Default.TravelExplore,"الأهداف القريبة"){explorer=true}
+            SceneButton(Icons.Default.AutoAwesome,"معالم المملكة ومكافآتها"){landmarksOpen=true}
             Box {
                 SceneButton(Icons.Default.Tune,"أدوات الخريطة"){mapTools=true}
                 DropdownMenu(mapTools,{mapTools=false}) {
@@ -234,10 +251,11 @@ fun KingdomMap(vm:FrontierViewModel,ask:(Command)->Unit) {
     }
     selected?.let {pin->RoyalSheet(pin.name,{selected=null}) {
         Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)) {
-            Image(painterResource(pinArt(pin)),null,Modifier.size(120.dp),contentScale=ContentScale.Fit)
+            if(pin.kind=="landmark") LandmarkArt(pin.data.optString("kind"),Modifier.size(120.dp))
+            else Image(painterResource(pinArt(pin)),null,Modifier.size(120.dp),contentScale=ContentScale.Fit)
             Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(8.dp)) {
                 Text("X:${pin.x.toInt()} • Y:${pin.y.toInt()}",color=Gold,fontWeight=FontWeight.Bold)
-                if(pin.level>0)Text("المستوى ${pin.level}",color=Mint)
+                if(pin.level>0&&pin.kind!="landmark")Text("المستوى ${pin.level}",color=Mint)
                 Text("${hypot(pin.x-camera.x,pin.y-camera.y).roundToInt()} خانة من مركز العرض",fontSize=11.sp,color=Parchment)
             }
         }
@@ -245,11 +263,12 @@ fun KingdomMap(vm:FrontierViewModel,ask:(Command)->Unit) {
             when(pin.kind) {
                 "gather"->Text("موارد متبقية: ${num(pin.data.optLong("remaining_amount"))}",color=Mint)
                 "hunt"->{Text("القوة ${num(pin.data.optLong("power"))}",color=Gold);Text("الصحة ${num(pin.data.optLong("current_hp"))} / ${num(pin.data.optLong("max_hp"))}")}
-                else->Text(if(pin.data.optLong("player_id")==vm.me.optLong("player_id")) "هذه مدينتك" else "مدينة حاكم في المملكة")
+                "landmark"->LandmarkDetails(vm,pin.data){selected=null;ask(it)}
+                else->{Text(if(pin.key.startsWith("npc-")) "مدينة غير لاعبة • للاستكشاف" else if(pin.data.optLong("player_id")==vm.me.optLong("player_id")) "هذه مدينتك" else "مدينة حاكم في المملكة");if(pin.data.has("power"))Text("القوة ${num(pin.data.optLong("power"))}",color=Gold)}
             }
         }
-        if(pin.kind!="city") ActionButton("تجهيز الحملة",vm.canAct){dispatch=pin;selected=null}
-        else if(pin.data.optLong("player_id")==vm.me.optLong("player_id")) ActionButton("دخول المدينة"){selected=null;vm.selectTab("city")}
+        if(pin.kind in listOf("gather","hunt")) ActionButton("تجهيز الحملة",vm.canAct){dispatch=pin;selected=null}
+        else if(pin.kind=="city"&&!pin.key.startsWith("npc-")&&pin.data.optLong("player_id")==vm.me.optLong("player_id")) ActionButton("دخول المدينة"){selected=null;vm.selectTab("city")}
     }}
     dispatch?.let{pin->ArmyDispatch(vm,pin.data,pin.kind,{dispatch=null}){dispatch=null;ask(it)}}
     if(coordinates)AlertDialog(onDismissRequest={coordinates=false},title={Text("انتقال على الخريطة")},text={Column {Text("أدخل إحداثيات من 0 إلى 499. يغيّر هذا موضع العرض فقط.");OutlinedTextField(x,{x=it.filter(Char::isDigit).take(3)},label={Text("X")},keyboardOptions=KeyboardOptions(keyboardType=KeyboardType.Number));OutlinedTextField(y,{y=it.filter(Char::isDigit).take(3)},label={Text("Y")},keyboardOptions=KeyboardOptions(keyboardType=KeyboardType.Number))}},confirmButton={TextButton({camera=MapCamera(x.toFloat(),y.toFloat(),camera.zoom);coordinates=false},enabled=(x.toIntOrNull()?:-1) in 0..499&&(y.toIntOrNull()?:-1) in 0..499){Text("استعراض")}},dismissButton={TextButton({coordinates=false}){Text("إلغاء")}})
@@ -262,6 +281,17 @@ fun KingdomMap(vm:FrontierViewModel,ask:(Command)->Unit) {
         }}
     }},confirmButton={TextButton({explorer=false}){Text("إغلاق")}})
     if(campaigns)AlertDialog(onDismissRequest={campaigns=false},title={Text("الحملات والمسيرات")},text={Column(Modifier.verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(12.dp)){World(vm){campaigns=false;ask(it)}}},confirmButton={TextButton({campaigns=false}){Text("إغلاق")}})
+    if(landmarksOpen) RoyalSheet("معالم المملكة",{landmarksOpen=false}) {
+        if(!vm.expansionAvailable) ExpansionAvailability(vm)
+        else {
+            val state=vm.doc("/expansion/v1/state")
+            Text("مكافآتك النشطة",color=Gold,fontWeight=FontWeight.Bold)
+            Text("التدريب +${state.optInt("training_percent")}% • سرعة الجمع +${state.optInt("gathering_percent")}%\nقوة الحاكم +${num(state.optLong("power_points"))}",color=Mint)
+            pins.filter{it.kind=="landmark"}.forEach {pin->Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(Ink).clickable{camera=MapCamera(pin.x,pin.y,1.5f);landmarksOpen=false;selected=pin}.padding(10.dp),verticalAlignment=Alignment.CenterVertically) {
+                LandmarkArt(pin.data.optString("kind"),Modifier.size(58.dp));Column(Modifier.weight(1f)){Text(pin.name,color=Gold);Text(landmarkEffect(pin.data),fontSize=12.sp,color=Mint)};Icon(Icons.Default.ChevronLeft,null)
+            }}
+        }
+    }
 }
 
 @Composable
@@ -277,20 +307,23 @@ fun WorldBoard(camera:MapCamera,onCamera:(MapCamera)->Unit,pins:List<WorldPin>,r
         val w=constraints.maxWidth.toFloat();val h=constraints.maxHeight.toFloat();val density=LocalDensity.current
         val base=w/80f;val scale=base*camera.zoom
         fun pos(x:Float,y:Float)=Offset(w/2+(x-camera.x)*scale,h/2+(y-camera.y)*scale)
+        val visible=remember(pins,camera,w,h){pins.filter{val p=pos(it.x,it.y);p.x in -250f..w+250&&p.y in -300f..h+300}.sortedBy{it.y}}
         Canvas(Modifier.fillMaxSize()) {
             // Decorative terrain tiles are separate from authoritative entity coordinates.
             for(tx in 0..4)for(ty in 0..4) {val p=pos(tx*100f,ty*100f);val side=ceil(100*scale).toInt()
                 if(p.x+side>=0&&p.y+side>=0&&p.x<=w&&p.y<=h)drawImage(texture,dstOffset=IntOffset(p.x.roundToInt(),p.y.roundToInt()),dstSize=IntSize(side+1,side+1),filterQuality=FilterQuality.Medium)
             }
-            pins.filter{it.kind=="hunt"}.forEach{p->drawCircle(Color(0xFFFFAE62).copy(.12f),with(density){30.dp.toPx()}*(.9f+.1f*sin(phase*30)),pos(p.x,p.y))}
+            visible.filter{it.kind=="hunt"}.forEach{p->drawCircle(Color(0xFFFFAE62).copy(.12f),with(density){30.dp.toPx()}*(.9f+.1f*sin(phase*30)),pos(p.x,p.y))}
         }
         // Coordinates are physical: the parent Box must not mirror their origin in Arabic.
         CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
-            pins.sortedBy{it.y}.forEach {pin->val p=pos(pin.x,pin.y);val width=if(pin.kind=="city") 98.dp else 80.dp
-                if(p.x in -100f..w+100&&p.y in -100f..h+100) {
+            visible.forEach {pin->val p=pos(pin.x,pin.y);val iconScale=camera.zoom.coerceIn(.55f,1.4f);val width=(if(pin.kind=="city") 98.dp else 80.dp)*iconScale
+                key(pin.key) {
                     Column(Modifier.align(AbsoluteAlignment.TopLeft).absoluteOffset{IntOffset((p.x-with(density){width.toPx()/2}).roundToInt(),(p.y-with(density){58.dp.toPx()}).roundToInt())}.width(width).clip(RoundedCornerShape(10.dp)).clickable{onPin(pin)}.testTag(pin.key),horizontalAlignment=Alignment.CenterHorizontally) {
-                        Image(painterResource(pinArt(pin)),pin.name,Modifier.size(if(pin.kind=="city") 90.dp else 70.dp).graphicsLayer {if(pin.kind=="hunt"){scaleY=1f+.015f*sin(phase*38);transformOrigin=TransformOrigin(.5f,1f)}},contentScale=ContentScale.Fit)
-                        Text((if(pin.level>0) "${pin.level} • " else "")+pin.name,Modifier.background(Ink.copy(.92f),RoundedCornerShape(5.dp)).padding(horizontal=6.dp,vertical=3.dp),color=if(pin.kind=="city") Mint else Color.White,fontSize=10.sp,fontWeight=FontWeight.Bold,maxLines=1)
+                        if(pin.kind=="landmark") LandmarkArt(pin.data.optString("kind"),Modifier.size(76.dp*iconScale))
+                        else Image(painterResource(pinArt(pin)),pin.name,Modifier.size((if(pin.kind=="city") 90.dp else 70.dp)*iconScale).graphicsLayer {if(pin.kind=="hunt"){scaleY=1f+.015f*sin(phase*38);transformOrigin=TransformOrigin(.5f,1f)}},contentScale=ContentScale.Fit)
+                        if(camera.zoom>=.8f)Text((if(pin.level>0&&pin.kind!="landmark") "${pin.level} • " else "")+pin.name,Modifier.background(Ink.copy(.92f),RoundedCornerShape(5.dp)).padding(horizontal=6.dp,vertical=3.dp),color=if(pin.kind=="landmark") Gold else if(pin.kind=="city") Mint else Color.White,fontSize=10.sp,fontWeight=FontWeight.Bold,maxLines=1)
+                        if(pin.key.startsWith("npc-")&&camera.zoom>=1.2f)Text("⚔ ${compact(pin.data.optLong("power"))}",color=Gold,fontSize=9.sp,modifier=Modifier.background(Ink.copy(.9f),RoundedCornerShape(4.dp)).padding(horizontal=4.dp))
                     }
                 }
             }
@@ -300,6 +333,7 @@ fun WorldBoard(camera:MapCamera,onCamera:(MapCamera)->Unit,pins:List<WorldPin>,r
 
 fun pinArt(pin:WorldPin):Int=when(pin.kind) {
     "city"->R.drawable.castle_sprite
+    "landmark"->R.drawable.castle_sprite
     "hunt"->R.drawable.world_beast
     else->when(pin.data.optString("node_type")){"food"->R.drawable.world_farm;"wood"->R.drawable.world_lumber;else->R.drawable.world_mine}
 }

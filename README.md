@@ -1,3 +1,7 @@
+# Android beta 0.6
+
+Larger draggable city, town minimap, searchable warehouse and an optional persistent world expansion. [Release scope](docs/BETA_0_6.md) · [Ubuntu expansion installation](server/expansion/README.md). Install the server extension to enable 1000 NPC cities, populated resources/monsters, landmarks and speedups.
+
 # Beta 0.5 — واجهة أكثر وضوحًا
 
 واجهة مدمجة، ديوان منظّم، حفظ الاختيارات والتمرير بين الصفحات، أدوات خريطة مجمّعة وتحكم أسهل في التدريب. راجع [تفاصيل النسخة](docs/BETA_0_5.md).

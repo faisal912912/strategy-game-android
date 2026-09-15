@@ -147,6 +147,7 @@ internal fun Kingdom(vm: FrontierViewModel) {
                             "army" -> MilitaryScreen(vm,ask)
                             "heroes" -> HeroesScreen(vm,ask)
                             "shop" -> ShopScreen(vm,ask)
+                            "warehouse" -> WarehouseScreen(vm,ask)
                             "missions" -> {RoyalHeading("سجل المملكة","المهام والمكافآت");Journal(vm,ask){a,b->detail=a to b}}
                             else -> {RoyalHeading("مجلس الحاكم","ديوان المملكة","كل ما تحتاجه لإدارة مملكتك");More(vm,ask)}
                         }
@@ -156,7 +157,7 @@ internal fun Kingdom(vm: FrontierViewModel) {
             if(scene)Box(Modifier.align(Alignment.TopCenter)){hud()}
         }
     }
-    if(showJobs) RoyalSheet("طابور أعمال المملكة",{showJobs=false}) {Jobs(vm){showJobs=false;ask(it)}}
+    if(showJobs) RoyalSheet("طابور أعمال المملكة",{showJobs=false}) {Jobs(vm){showJobs=false;ask(it)};ActionButton("المستودع والتسريعات"){showJobs=false;vm.selectTab("warehouse")}}
     if(showProfile) RoyalSheet("ملف الحاكم",{showProfile=false}) {
         GovernorCard(vm)
         Panel {
@@ -173,6 +174,7 @@ internal fun Kingdom(vm: FrontierViewModel) {
             Icon(resourceIcon(k),null,tint=Gold);Text(title(k),Modifier.weight(1f));Text(num(vm.me.obj("resources").optLong(k)),color=Mint,fontWeight=FontWeight.Bold)
         }}
         ActionButton("البحث عن موارد في المملكة"){showResources=false;vm.selectTab("world")}
+        ActionButton("فتح المستودع والتسريعات"){showResources=false;vm.selectTab("warehouse")}
     }
     confirmation?.let { command -> AlertDialog(onDismissRequest={confirmation=null},title={Text(command.title)},text={Text(commandDescription(command))},
         confirmButton={TextButton({confirmation=null;vm.submit(command)},enabled=vm.canAct) {Text("تأكيد الأمر")}},dismissButton={TextButton({confirmation=null}) {Text("إلغاء")}}) }
@@ -212,7 +214,7 @@ private fun Section(heading: String, subtitle: String="") { Text(heading,fontSiz
 private fun Jobs(vm: FrontierViewModel, ask: (Command)->Unit) { Panel {
     Text("أعمال المدينة",color=Gold,fontWeight=FontWeight.Bold)
     vm.jobs.forEach { job ->
-        Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween){Text(job.label,Modifier.weight(1f));Text(countdown(job.ends,vm.now),color=Mint)}
+        Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween){Text(jobName(job),Modifier.weight(1f));Text(countdown(job.ends,vm.now),color=Mint)}
         if(vm.now>=job.ends) {
             val path=job.claimPath.ifEmpty { when(job.kind){"build"->"/game/buildings/claim";"train"->"/game/training/claim";else->"/game/research/claim"} }
             ActionButton("استلام ${job.label}",vm.canAct){ask(Command("استلام ${job.label}",path,if(job.claimId>0) json("id" to job.claimId) else JSONObject()))}
@@ -374,7 +376,7 @@ private fun More(vm: FrontierViewModel,ask:(Command)->Unit) {
         GovernorCard(vm)
         Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(10.dp)) {
             CouncilTile("التحالف","الأعضاء والتبرعات",Icons.Default.Groups,Modifier.weight(1f)){page="alliance"}
-            CouncilTile("الحقيبة","العناصر والمكافآت",Icons.Default.Inventory2,Modifier.weight(1f)){page="inventory"}
+            CouncilTile("المستودع","التسريعات والموارد والأغراض",Icons.Default.Inventory2,Modifier.weight(1f)){vm.selectTab("warehouse")}
         }
         Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(10.dp)) {
             CouncilTile("المهام والبريد","السجل ومكافآت المملكة",Icons.Default.Assignment,Modifier.weight(1f)){vm.selectTab("missions")}
@@ -400,17 +402,6 @@ private fun More(vm: FrontierViewModel,ask:(Command)->Unit) {
             ActionButton("انضمام",vm.canAct&&(allianceId.toLongOrNull()?:0)>0){ask(Command("الانضمام للتحالف $allianceId","/alliances/join",json("alliance_id" to allianceId.toLong())))}
         }
     }
-    }
-    if(page=="inventory") {
-    Section("الحقيبة")
-    val items=vm.doc("/inventory").rows("items")
-    if(items.isEmpty()) EmptyState("حقيبتك فارغة","تظهر هنا الموارد والعناصر التي تكسبها من اللعب.")
-    items.forEach {item->Panel {
-        val key=item.optString("item_key",item.optString("key"))
-        Text(item.optString("name",title(key)),fontWeight=FontWeight.Bold)
-        Text("الكمية ${num(item.optLong("quantity"))}")
-        ActionButton("استخدام عنصر واحد",vm.canAct&&item.optLong("quantity")>0){ask(Command("استخدام ${title(key)}","/inventory/use",json("item_key" to key,"count" to 1)))}
-    } }
     }
     if(page=="ranking") {
     Section("لوحة القوة")

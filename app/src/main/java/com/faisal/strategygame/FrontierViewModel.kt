@@ -17,8 +17,8 @@ import org.json.JSONObject
 import java.time.Instant
 import java.util.UUID
 
-data class CityJob(val kind: String, val label: String, val ends: Long, val claimPath: String = "", val claimId: Long = 0) {
-    fun encode() = json("kind" to kind, "label" to label, "ends" to ends, "claimPath" to claimPath, "claimId" to claimId)
+data class CityJob(val kind: String, val label: String, val ends: Long, val claimPath: String = "", val claimId: Long = 0, val jobId: Long = 0) {
+    fun encode() = json("kind" to kind, "label" to label, "ends" to ends, "claimPath" to claimPath, "claimId" to claimId,"jobId" to jobId)
 }
 data class Command(val title: String, val path: String, val body: JSONObject, val jobKind: String = "", val key: String = UUID.randomUUID().toString(), val details: String = "") {
     fun encode() = json("title" to title, "path" to path, "body" to body, "jobKind" to jobKind, "key" to key, "details" to details)
@@ -45,6 +45,10 @@ class FrontierViewModel(app: Application) : AndroidViewModel(app) {
     var pending by mutableStateOf<Command?>(null); private set
     var now by mutableStateOf(System.currentTimeMillis()); private set
     var lastSync by mutableStateOf(0L); private set
+    var expansionAvailable by mutableStateOf(false); private set
+    var expansionError by mutableStateOf(false); private set
+    private var expansionUnsupported = false
+    val canExpand get() = canAct && expansionAvailable && !expansionError
     var battleResult by mutableStateOf<JSONObject?>(null); private set
     fun dismissBattle() { battleResult = null }
     var scanX by mutableStateOf(250); private set
@@ -123,13 +127,15 @@ class FrontierViewModel(app: Application) : AndroidViewModel(app) {
             val profile = api.request("/me")
             scopeKey = gateway + ":" + profile.getLong("player_id")
             val saved = runCatching { JSONObject(prefs.getString(scopeKey, "{}")!!) }.getOrDefault(JSONObject())
-            jobs = saved.rows("jobs").map { CityJob(it.getString("kind"), it.getString("label"), it.getLong("ends"),it.optString("claimPath"),it.optLong("claimId")) }
+            jobs = saved.rows("jobs").map { CityJob(it.getString("kind"), it.getString("label"), it.getLong("ends"),it.optString("claimPath"),it.optLong("claimId"),it.optLong("jobId")) }
             pending = saved.optJSONObject("pending")?.let { Command.decode(it) }
             documents = mapOf("/me" to profile); signedIn = true; error = null; failedPaths = emptySet()
+            expansionAvailable=false;expansionUnsupported=false;expansionError=false
             refreshData()
         } catch (e: Exception) { handle(e) } finally { busy = false }
     }
     fun selectTab(value: String) { tab = value; refresh(queue = true) }
+    fun checkExpansion() {expansionUnsupported=false;refresh(queue=true)}
     fun refresh(queue: Boolean = false) {
         if (!signedIn) return
         if (busy || refreshing) { if(queue) queuedRefresh = true; return }
@@ -142,15 +148,36 @@ class FrontierViewModel(app: Application) : AndroidViewModel(app) {
         val snapshotTab = tab
         val paths = mutableListOf("/me", "/world/v3/gather/marches", "/world/v4/hunt/marches")
         paths += when (tab) {
-            "city" -> listOf("/game/buildings", "/city/progression")
-            "army" -> listOf("/game/buildings", "/game/research", "/hospital", "/hospital/v2/status", "/hospital/v2/heal/jobs")
+            "city" -> listOf("/game/buildings", "/city/progression", "/inventory")
+            "army" -> listOf("/game/buildings", "/game/research", "/hospital", "/hospital/v2/status", "/hospital/v2/heal/jobs", "/inventory")
+            "warehouse" -> listOf("/inventory", "/equipment")
             "heroes" -> listOf("/commanders", "/commanders/skills", "/equipment")
             "shop" -> listOf("/shop/v3/catalog", "/shop/v3/orders", "/commerce/v2/wallet")
-            "world" -> listOf("/world/v2/state", cityPath, nodePath, monsterPath, "/world/v4/pve/status", "/world/resources", "/world/monsters")
+            "world" -> listOf("/game/buildings", "/world/v2/state", cityPath, nodePath, monsterPath, "/world/v4/pve/status", "/world/resources", "/world/monsters")
             "missions" -> listOf("/daily/quests", "/progress/v2/daily", "/world/v4/hunt/reports", "/world/v3/gather/reports", "/mail")
             else -> listOf("/alliances/me", "/leaderboards/power", "/inventory")
         }
         try {
+            // Optional additive module: an older Core keeps working without these routes.
+            if(!expansionUnsupported) {
+                try {
+                    val state=api.request("/expansion/v1/state")
+                    require(state.optInt("version")==1)
+                    documents=documents+("/expansion/v1/state" to state)
+                    expansionAvailable=true;expansionError=false
+                    jobs=jobs.filterNot{it.kind in listOf("build","train","research")}+state.rows("jobs").map {j->
+                        val kind=j.getString("kind")
+                        CityJob(kind,when(kind){"build"->"بناء ${j.optString("label")}";"train"->"تدريب ${j.optString("label")}";else->"بحث ${j.optString("label")}"},instantMillis(j.getString("ends")),jobId=j.getLong("id"))
+                    }
+                    persist()
+                } catch(e:Exception) {
+                    if(e is CancellationException) throw e
+                    if(e is ApiFailure && e.status==404) {expansionUnsupported=true;expansionAvailable=false}
+                    else {expansionError=true;if(e is ApiFailure && e.status==401) handle(e)}
+                }
+            }
+            if(!signedIn) return
+            if(snapshotTab=="world"&&expansionAvailable&&!documents.containsKey("/expansion/v1/world")) paths+="/expansion/v1/world"
             // The commanders endpoint initializes the starter hero on a new city.
             // Skill ownership must be read after that transaction has completed.
             val commanders = if(snapshotTab == "heroes") runCatching { api.request("/commanders") } else null
@@ -187,6 +214,7 @@ class FrontierViewModel(app: Application) : AndroidViewModel(app) {
     }
     fun submit(command: Command) {
         if (!canAct) return
+        if(command.path.startsWith("/expansion/")&&!canExpand) return
         pending = command
         try { persist() } catch (e: Exception) { pending = null; handle(e); return }
         retryPending()
@@ -201,8 +229,9 @@ class FrontierViewModel(app: Application) : AndroidViewModel(app) {
                 if (command.path == "/world/monsters/claim") battleResult = response
                 if (command.jobKind.isNotEmpty()) {
                     val claimPath = when(command.jobKind) {"gather" -> "/world/gather/claim";"hunt" -> "/world/monsters/claim";else -> ""}
-                    jobs = jobs.filterNot { it.kind == command.jobKind } + CityJob(command.jobKind, command.title, instantMillis(response.optString("finishes_at")),claimPath,response.optLong("job_id",response.optLong("hunt_id")))
+                    jobs = jobs.filterNot { it.kind == command.jobKind } + CityJob(command.jobKind, command.title, instantMillis(response.optString("finishes_at")),claimPath,response.optLong("job_id",response.optLong("hunt_id")),response.optLong("queue_id",response.optLong("job_id")))
                 }
+                if(command.path=="/expansion/v1/speedup") jobs=jobs.map {if(it.kind==response.optString("kind")&&it.jobId==response.optLong("job_id")) it.copy(ends=instantMillis(response.optString("finishes_at"))) else it}
                 if (command.path.endsWith("/claim")) {
                     val kind = when(command.path) { "/game/buildings/claim" -> "build"; "/game/training/claim" -> "train"; "/game/research/claim" -> "research"; else -> "" }
                     jobs = jobs.filterNot { it.kind == kind || it.claimPath == command.path }
@@ -229,6 +258,7 @@ class FrontierViewModel(app: Application) : AndroidViewModel(app) {
             try { api.request("/logout", JSONObject()) } catch (_: Exception) { /* Local token is always removed. */ }
             vault.clear(); api.token = ""; signedIn = false; documents = emptyMap(); jobs = emptyList()
             pending = null; scopeKey = ""; lastSync = 0; error = null; busy = false; tab = "city"
+            expansionAvailable=false;expansionUnsupported=false;expansionError=false
         }
     }
 }

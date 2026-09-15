@@ -128,6 +128,7 @@ fun MilitaryScreen(vm: FrontierViewModel,ask:(Command)->Unit) {
         TierTrack(tier,level){tier=it}
         TierRequirements(tier,level,building)
         val count=amount.toLongOrNull()?:0
+        val trainingBonus=vm.doc("/expansion/v1/state").optInt("training_percent")
         val cost=if(count in 1..100000) trainingCost(tier,count) else null
         val available=vm.me.obj("resources")
         val maximum=maxTrainable(tier,available.optLong("food"),available.optLong("wood"),available.optLong("gold"))
@@ -137,10 +138,11 @@ fun MilitaryScreen(vm: FrontierViewModel,ask:(Command)->Unit) {
         TrainingAmountPicker(amount,maximum){amount=it}
         val res=vm.me.obj("resources");val unlocked=level>=tierBuildingLevel(tier)
         val enough=cost!=null&&res.optLong("food")>=cost.food&&res.optLong("wood")>=cost.wood&&res.optLong("gold")>=cost.gold
-        cost?.let {ResourceCosts(mapOf("food" to it.food,"wood" to it.wood,"gold" to it.gold),res);Text("مدة التدريب: ${countdown(it.seconds*1000,0)}",color=Mint,style=MaterialTheme.typography.bodySmall)}
+        if(trainingBonus>0) Text("مكافأة معالم المملكة: سرعة التدريب +$trainingBonus%",color=Gold,style=MaterialTheme.typography.bodySmall)
+        cost?.let {ResourceCosts(mapOf("food" to it.food,"wood" to it.wood,"gold" to it.gold),res);Text("مدة التدريب: ${countdown((it.seconds*1000/(1+trainingBonus/100.0)).toLong(),0)}",color=Mint,style=MaterialTheme.typography.bodySmall)}
         val queue=vm.jobs.any{it.kind=="train"}
         ActionButton(when { !unlocked->"يتطلب ${title(building)} مستوى ${tierBuildingLevel(tier)}";queue->"التدريب الحالي لم يُستلم";!enough->"تحقق من العدد والموارد";else->"تدريب ${num(count)} • T$tier"},vm.canAct&&unlocked&&enough&&!queue) {
-            ask(Command("تدريب ${num(count)} ${title(type)} T$tier","/game/training/start",json("type" to type,"tier" to tier,"amount" to count),"train",details="${num(cost!!.food)} غذاء · ${num(cost.wood)} خشب · ${num(cost.gold)} ذهب\nالمدة ${countdown(cost.seconds*1000,0)}"))
+            ask(Command("تدريب ${num(count)} ${title(type)} T$tier","/game/training/start",json("type" to type,"tier" to tier,"amount" to count),"train",details="${num(cost!!.food)} غذاء · ${num(cost.wood)} خشب · ${num(cost.gold)} ذهب\nالمدة ${countdown((cost.seconds*1000/(1+trainingBonus/100.0)).toLong(),0)}"))
         }
         if(!unlocked) TextButton({vm.selectTab("city")}) {Text("الذهاب إلى المدينة للتطوير")}
         TextButton({ask(Command("استلام التدريب المكتمل","/game/training/claim",JSONObject()))},enabled=vm.canAct){Text("استلام تدريب سابق")}

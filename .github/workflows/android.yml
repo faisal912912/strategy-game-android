@@ -5,6 +5,27 @@ on:
   pull_request:
     branches: [main]
 jobs:
+  server-expansion:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: frontier_expansion_test
+          POSTGRES_USER: frontier_test
+          POSTGRES_PASSWORD: frontier_test
+        ports: ["5432:5432"]
+        options: --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.23"
+          cache: false
+      - name: Validate persistent world and atomic economy
+        env:
+          DATABASE_URL: postgres://frontier_test:frontier_test@127.0.0.1:5432/frontier_expansion_test?sslmode=disable
+        run: bash server/expansion/validation/run.sh
   build:
     runs-on: ubuntu-latest
     steps:
