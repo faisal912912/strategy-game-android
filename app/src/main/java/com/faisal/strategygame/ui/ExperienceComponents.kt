@@ -21,6 +21,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.*
 import com.faisal.strategygame.*
+import com.faisal.strategygame.R
 import com.faisal.strategygame.data.*
 
 @OptIn(ExperimentalMaterial3Api::class)
