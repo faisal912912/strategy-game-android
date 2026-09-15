@@ -15,6 +15,9 @@ import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.saveable.Saver
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.AbsoluteAlignment
 import androidx.compose.ui.Modifier
@@ -38,6 +41,8 @@ import kotlinx.coroutines.delay
 import org.json.JSONObject
 import kotlin.math.*
 
+private val CameraSaver=Saver<MapCamera,List<Float>>(save={listOf(it.x,it.y,it.zoom)},restore={MapCamera(it[0],it[1],it[2])})
+
 data class BuildingSpot(val key:String,val x:Float,val y:Float)
 val townSpots=listOf(BuildingSpot("castle",500f,390f),BuildingSpot("barracks",215f,355f),BuildingSpot("archery_range",795f,350f),BuildingSpot("stable",790f,523f),BuildingSpot("hospital",236f,520f),BuildingSpot("academy",500f,595f),BuildingSpot("warehouse",500f,780f),BuildingSpot("farm",210f,717f),BuildingSpot("lumber_mill",260f,190f),BuildingSpot("quarry",718f,207f),BuildingSpot("gold_mine",808f,735f))
 
@@ -46,13 +51,19 @@ val townSpots=listOf(BuildingSpot("castle",500f,390f),BuildingSpot("barracks",21
 fun TownScreen(vm:FrontierViewModel,ask:(Command)->Unit) {
     var selected by rememberSaveable {mutableStateOf<String?>(null)}
     var ledger by rememberSaveable {mutableStateOf(false)}
+    var toolsOpen by remember {mutableStateOf(false)}
+    var showLabels by rememberSaveable {mutableStateOf(true)}
     val buildings=vm.doc("/game/buildings").rows("buildings")
     Box(Modifier.fillMaxSize()) {
-        TownBoard(buildings.associate{it.optString("type") to it.optInt("level")},vm.jobs.firstOrNull{it.kind=="build"}?.let {"${it.label} • ${countdown(it.ends,vm.now)}"},vm.reduceMotion,{selected=it})
-        Column(Modifier.align(Alignment.TopEnd).statusBarsPadding().padding(top=120.dp,end=8.dp),verticalArrangement=Arrangement.spacedBy(5.dp)) {
-            GameMedallion(Icons.Default.AccountBalance,"المباني"){ledger=true}
-            GameMedallion(Icons.Default.Assignment,"المهام"){vm.selectTab("missions")}
-            GameMedallion(Icons.Default.Redeem,"العروض"){vm.selectTab("shop")}
+        TownBoard(buildings.associate{it.optString("type") to it.optInt("level")},vm.jobs.firstOrNull{it.kind=="build"}?.let {"${it.label} • ${countdown(it.ends,vm.now)}"},vm.reduceMotion,showLabels){selected=it}
+        Box(Modifier.align(Alignment.TopEnd).statusBarsPadding().padding(top=104.dp,end=10.dp)) {
+            SceneButton(Icons.Default.Widgets,"قائمة المدينة"){toolsOpen=true}
+            DropdownMenu(toolsOpen,{toolsOpen=false}) {
+                DropdownMenuItem(text={Text("سجل المباني")},leadingIcon={Icon(Icons.Default.AccountBalance,null)},onClick={toolsOpen=false;ledger=true})
+                DropdownMenuItem(text={Text(if(showLabels) "إخفاء أسماء المباني" else "إظهار أسماء المباني")},leadingIcon={Icon(Icons.Default.Label,null)},onClick={showLabels=!showLabels;toolsOpen=false})
+                DropdownMenuItem(text={Text("المهام والمكافآت")},leadingIcon={Icon(Icons.Default.Assignment,null)},onClick={toolsOpen=false;vm.selectTab("missions")})
+                DropdownMenuItem(text={Text("باقات المملكة")},leadingIcon={Icon(Icons.Default.Redeem,null)},onClick={toolsOpen=false;vm.selectTab("shop")})
+            }
         }
         val castle=buildings.firstOrNull{it.optString("type")=="castle"}?.optInt("level") ?: 1
         Box(Modifier.align(Alignment.BottomCenter).padding(10.dp)) {
@@ -87,8 +98,8 @@ fun TownScreen(vm:FrontierViewModel,ask:(Command)->Unit) {
 }
 
 @Composable
-fun TownBoard(levels:Map<String,Int>,buildLabel:String?,reduced:Boolean,onBuilding:(String)->Unit) {
-    var camera by remember {mutableStateOf(MapCamera(500f,470f,1.35f))}
+fun TownBoard(levels:Map<String,Int>,buildLabel:String?,reduced:Boolean,showLabels:Boolean=true,onBuilding:(String)->Unit) {
+    var camera by rememberSaveable(stateSaver=CameraSaver) {mutableStateOf(MapCamera(500f,470f,1.35f))}
     val board=ImageBitmap.imageResource(R.drawable.town_board)
     val phase=scenePhase(reduced)
     BoxWithConstraints(Modifier.fillMaxSize().background(Color(0xFF253D31)).clipToBoundsCompat().testTag("town-board").pointerInput(Unit) {detectTransformGestures {centroid,pan,zoom,_->
@@ -125,10 +136,11 @@ fun TownBoard(levels:Map<String,Int>,buildLabel:String?,reduced:Boolean,onBuildi
         CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
             townSpots.forEach {spot->val p=pos(spot.x,spot.y)
                 if(p.x in -90f..w+90&&p.y in -100f..h+100) {
-                    Column(Modifier.align(AbsoluteAlignment.TopLeft).absoluteOffset{IntOffset((p.x-with(density){50.dp.toPx()}).roundToInt(),(p.y-with(density){86.dp.toPx()}).roundToInt())}.width(100.dp).height(110.dp).clip(RoundedCornerShape(12.dp)).clickable {onBuilding(spot.key)}.testTag("building-${spot.key}"),horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.Bottom) {
-                        Spacer(Modifier.height(28.dp))
-                        Text(title(spot.key),Modifier.background(Ink.copy(.88f),RoundedCornerShape(topStart=6.dp,topEnd=6.dp)).padding(horizontal=8.dp,vertical=3.dp),fontSize=10.sp,color=Parchment,fontWeight=FontWeight.Bold,maxLines=1)
-                        Text(levels[spot.key]?.let{"Lv. $it"}?:"…",Modifier.background(Emerald.copy(.96f),RoundedCornerShape(bottomStart=6.dp,bottomEnd=6.dp)).padding(horizontal=9.dp,vertical=2.dp),fontSize=10.sp,color=Gold)
+                    Column(Modifier.align(AbsoluteAlignment.TopLeft).absoluteOffset{IntOffset((p.x-with(density){50.dp.toPx()}).roundToInt(),(p.y-with(density){86.dp.toPx()}).roundToInt())}.width(100.dp).height(110.dp).clip(RoundedCornerShape(12.dp)).clickable {onBuilding(spot.key)}.testTag("building-${spot.key}").semantics{contentDescription=title(spot.key)},horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.Bottom) {
+                        Row(Modifier.clip(RoundedCornerShape(6.dp)).background(Ink.copy(.88f)).border(.7.dp,Bronze.copy(.8f),RoundedCornerShape(6.dp)).padding(horizontal=5.dp,vertical=3.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(4.dp)) {
+                            if(showLabels) Text(title(spot.key),fontSize=9.sp,color=Parchment,fontWeight=FontWeight.Bold,maxLines=1,modifier=Modifier.weight(1f,false))
+                            Text(levels[spot.key]?.toString()?:"…",Modifier.background(Emerald,RoundedCornerShape(3.dp)).padding(horizontal=4.dp,vertical=1.dp),fontSize=9.sp,color=Gold,fontWeight=FontWeight.Bold)
+                        }
                     }
                 }
             }
@@ -187,8 +199,9 @@ fun KingdomMap(vm:FrontierViewModel,ask:(Command)->Unit) {
     var explorer by rememberSaveable {mutableStateOf(false)}
     var coordinates by rememberSaveable {mutableStateOf(false)};var campaigns by rememberSaveable {mutableStateOf(false)}
     var x by rememberSaveable {mutableStateOf("")};var y by rememberSaveable {mutableStateOf("")}
-    var camera by remember {mutableStateOf(MapCamera(vm.scanX.toFloat(),vm.scanY.toFloat()))}
-    var located by remember {mutableStateOf(false)}
+    var camera by rememberSaveable(stateSaver=CameraSaver) {mutableStateOf(MapCamera(vm.scanX.toFloat(),vm.scanY.toFloat()))}
+    var located by rememberSaveable {mutableStateOf(false)}
+    var mapTools by remember {mutableStateOf(false)}
     val location=vm.doc("/world/v2/state")
     LaunchedEffect(location.toString()) {if(!located&&location.has("x")){camera=MapCamera(location.getInt("x").toFloat(),location.getInt("y").toFloat());located=true;vm.scan(camera.x.roundToInt(),camera.y.roundToInt())}}
     LaunchedEffect(camera.x.roundToInt(),camera.y.roundToInt()) {delay(650);vm.scan(camera.x.roundToInt(),camera.y.roundToInt())}
@@ -198,32 +211,46 @@ fun KingdomMap(vm:FrontierViewModel,ask:(Command)->Unit) {
         monsters.filter{it.optString("status")=="active"}.map{WorldPin("monster-${it.optLong("id")}","hunt",it.optInt("x").toFloat(),it.optInt("y").toFloat(),it.optString("name"),it.optInt("level"),it)}
     Box(Modifier.fillMaxSize()) {
         WorldBoard(camera,{camera=it},pins.filter{filter=="all"||it.kind==filter},vm.reduceMotion){selected=it}
-        Column(Modifier.align(Alignment.TopCenter).statusBarsPadding().padding(top=155.dp,start=12.dp,end=12.dp),verticalArrangement=Arrangement.spacedBy(6.dp)) {
+        Column(Modifier.align(Alignment.TopCenter).statusBarsPadding().padding(top=104.dp,start=12.dp,end=12.dp),verticalArrangement=Arrangement.spacedBy(6.dp)) {
             ChoiceTabs(listOf("all" to "الكل","city" to "المدن","gather" to "الموارد","hunt" to "الوحوش"),filter){filter=it}
         }
         Box(Modifier.align(Alignment.BottomStart).padding(start=12.dp,bottom=80.dp)) {
             KingdomMinimap(camera,pins){camera=MapCamera(it.x,it.y,camera.zoom)}
         }
         Column(Modifier.align(Alignment.CenterEnd).padding(10.dp),verticalArrangement=Arrangement.spacedBy(8.dp)) {
-            SceneButton(Icons.Default.Add,"تكبير الخريطة"){camera=camera.copy(zoom=(camera.zoom*1.3f).coerceAtMost(4f))}
-            SceneButton(Icons.Default.Remove,"تصغير الخريطة"){camera=camera.copy(zoom=(camera.zoom/1.3f).coerceAtLeast(.5f))}
-            SceneButton(Icons.Default.Home,"موقع مدينتي"){if(location.has("x"))camera=MapCamera(location.optInt("x").toFloat(),location.optInt("y").toFloat())}
             SceneButton(Icons.Default.Search,"بحث بالإحداثيات"){x=camera.x.roundToInt().toString();y=camera.y.roundToInt().toString();coordinates=true}
-            SceneButton(Icons.Default.Flag,"الحملات والمسيرات"){campaigns=true}
             SceneButton(Icons.Default.TravelExplore,"الأهداف القريبة"){explorer=true}
+            Box {
+                SceneButton(Icons.Default.Tune,"أدوات الخريطة"){mapTools=true}
+                DropdownMenu(mapTools,{mapTools=false}) {
+                    DropdownMenuItem(text={Text("تكبير الخريطة")},leadingIcon={Icon(Icons.Default.Add,null)},onClick={camera=camera.copy(zoom=(camera.zoom*1.3f).coerceAtMost(4f));mapTools=false})
+                    DropdownMenuItem(text={Text("تصغير الخريطة")},leadingIcon={Icon(Icons.Default.Remove,null)},onClick={camera=camera.copy(zoom=(camera.zoom/1.3f).coerceAtLeast(.5f));mapTools=false})
+                    DropdownMenuItem(text={Text("موقع مدينتي")},leadingIcon={Icon(Icons.Default.Home,null)},onClick={if(location.has("x"))camera=MapCamera(location.optInt("x").toFloat(),location.optInt("y").toFloat());mapTools=false})
+                    DropdownMenuItem(text={Text("الحملات والمسيرات")},leadingIcon={Icon(Icons.Default.Flag,null)},onClick={campaigns=true;mapTools=false})
+                }
+            }
         }
         Text("#1  •  X:${camera.x.roundToInt()}   Y:${camera.y.roundToInt()}  •  طاقة ${vm.doc("/world/v4/pve/status").optInt("energy")}",Modifier.align(Alignment.BottomCenter).padding(12.dp).background(Ink.copy(.9f),RoundedCornerShape(12.dp)).padding(10.dp),fontSize=11.sp,color=Gold)
     }
-    selected?.let {pin->AlertDialog(onDismissRequest={selected=null},title={Text(pin.name)},text={Column(verticalArrangement=Arrangement.spacedBy(10.dp)) {
-        Image(painterResource(pinArt(pin)),null,Modifier.fillMaxWidth().height(160.dp),contentScale=ContentScale.Fit)
-        Text("X:${pin.x.toInt()} • Y:${pin.y.toInt()}",color=Gold)
-        if(pin.level>0)Text("المستوى ${pin.level}")
-        when(pin.kind) {
-            "gather"->Text("موارد متبقية: ${num(pin.data.optLong("remaining_amount"))}",color=Mint)
-            "hunt"->{Text("القوة ${num(pin.data.optLong("power"))}");Text("الصحة ${num(pin.data.optLong("current_hp"))} / ${num(pin.data.optLong("max_hp"))}")}
-            else->Text(if(pin.data.optLong("player_id")==vm.me.optLong("player_id")) "هذه مدينتك" else "مدينة حاكم في المملكة")
+    selected?.let {pin->RoyalSheet(pin.name,{selected=null}) {
+        Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)) {
+            Image(painterResource(pinArt(pin)),null,Modifier.size(120.dp),contentScale=ContentScale.Fit)
+            Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(8.dp)) {
+                Text("X:${pin.x.toInt()} • Y:${pin.y.toInt()}",color=Gold,fontWeight=FontWeight.Bold)
+                if(pin.level>0)Text("المستوى ${pin.level}",color=Mint)
+                Text("${hypot(pin.x-camera.x,pin.y-camera.y).roundToInt()} خانة من مركز العرض",fontSize=11.sp,color=Parchment)
+            }
         }
-    }},confirmButton={if(pin.kind!="city")TextButton({dispatch=pin;selected=null},enabled=vm.canAct){Text("تجهيز الحملة")}else TextButton({selected=null;if(pin.data.optLong("player_id")==vm.me.optLong("player_id"))vm.selectTab("city")}){Text(if(pin.data.optLong("player_id")==vm.me.optLong("player_id")) "دخول المدينة" else "إغلاق")}},dismissButton={if(pin.kind!="city") TextButton({selected=null}){Text("إغلاق")}})}
+        Panel {
+            when(pin.kind) {
+                "gather"->Text("موارد متبقية: ${num(pin.data.optLong("remaining_amount"))}",color=Mint)
+                "hunt"->{Text("القوة ${num(pin.data.optLong("power"))}",color=Gold);Text("الصحة ${num(pin.data.optLong("current_hp"))} / ${num(pin.data.optLong("max_hp"))}")}
+                else->Text(if(pin.data.optLong("player_id")==vm.me.optLong("player_id")) "هذه مدينتك" else "مدينة حاكم في المملكة")
+            }
+        }
+        if(pin.kind!="city") ActionButton("تجهيز الحملة",vm.canAct){dispatch=pin;selected=null}
+        else if(pin.data.optLong("player_id")==vm.me.optLong("player_id")) ActionButton("دخول المدينة"){selected=null;vm.selectTab("city")}
+    }}
     dispatch?.let{pin->ArmyDispatch(vm,pin.data,pin.kind,{dispatch=null}){dispatch=null;ask(it)}}
     if(coordinates)AlertDialog(onDismissRequest={coordinates=false},title={Text("انتقال على الخريطة")},text={Column {Text("أدخل إحداثيات من 0 إلى 499. يغيّر هذا موضع العرض فقط.");OutlinedTextField(x,{x=it.filter(Char::isDigit).take(3)},label={Text("X")},keyboardOptions=KeyboardOptions(keyboardType=KeyboardType.Number));OutlinedTextField(y,{y=it.filter(Char::isDigit).take(3)},label={Text("Y")},keyboardOptions=KeyboardOptions(keyboardType=KeyboardType.Number))}},confirmButton={TextButton({camera=MapCamera(x.toFloat(),y.toFloat(),camera.zoom);coordinates=false},enabled=(x.toIntOrNull()?:-1) in 0..499&&(y.toIntOrNull()?:-1) in 0..499){Text("استعراض")}},dismissButton={TextButton({coordinates=false}){Text("إلغاء")}})
     if(explorer)AlertDialog(onDismissRequest={explorer=false},title={Text("أهداف حول موقع العرض")},text={Column(Modifier.verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(8.dp)) {

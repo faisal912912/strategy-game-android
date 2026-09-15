@@ -5,6 +5,8 @@ import androidx.compose.foundation.*
 import androidx.compose.foundation.interaction.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.*
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.ui.semantics.Role
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -40,17 +42,17 @@ fun resourceIcon(key:String):ImageVector=when(key){"food"->Icons.Default.Grass;"
 
 @Composable
 fun RealmHud(name:String,power:Long,resources:JSONObject,level:Int,syncing:Boolean,onProfile:()->Unit,onResources:()->Unit,onRefresh:()->Unit) {
-    Column(Modifier.fillMaxWidth().background(Brush.verticalGradient(listOf(Ink,Ink.copy(.93f),Ink.copy(.68f),Color.Transparent))).statusBarsPadding().padding(start=10.dp,end=10.dp,top=6.dp,bottom=18.dp)) {
+    Column(Modifier.fillMaxWidth().background(Brush.verticalGradient(listOf(Ink,Ink.copy(.93f),Ink.copy(.68f),Color.Transparent))).statusBarsPadding().padding(start=10.dp,end=10.dp,top=4.dp,bottom=6.dp)) {
         Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(10.dp)) {
-            Box(Modifier.size(56.dp).clip(RoundedCornerShape(13.dp)).border(2.dp,Gold,RoundedCornerShape(13.dp)).clickable(onClick=onProfile)) {
+            Box(Modifier.size(46.dp).clip(RoundedCornerShape(13.dp)).border(2.dp,Gold,RoundedCornerShape(13.dp)).clickable(onClick=onProfile)) {
                 Image(painterResource(R.drawable.hero_royal),"ملف الحاكم",Modifier.fillMaxSize(),contentScale=ContentScale.Crop)
                 Text(level.toString(),Modifier.align(Alignment.BottomCenter).fillMaxWidth().background(Ink.copy(.9f)),color=Gold,fontWeight=FontWeight.Bold,fontSize=10.sp,textAlign=androidx.compose.ui.text.style.TextAlign.Center)
             }
             Column(Modifier.weight(1f)) {
-                Text(name.ifEmpty{"حاكم المملكة"},color=Parchment,fontSize=16.sp,fontWeight=FontWeight.Black,maxLines=1,overflow=TextOverflow.Ellipsis)
+                Text(name.ifEmpty{"حاكم المملكة"},color=Parchment,fontSize=15.sp,fontWeight=FontWeight.Black,maxLines=1,overflow=TextOverflow.Ellipsis)
                 Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(4.dp)) {
                     Icon(Icons.Default.Bolt,null,tint=Gold,modifier=Modifier.size(17.dp))
-                    Text(num(power),color=Gold,fontWeight=FontWeight.Bold,fontSize=13.sp)
+                    Text(num(power),color=Gold,fontWeight=FontWeight.Bold,fontSize=12.sp)
                     Text("• المملكة 1",color=Parchment.copy(.7f),fontSize=10.sp)
                 }
             }
@@ -58,8 +60,8 @@ fun RealmHud(name:String,power:Long,resources:JSONObject,level:Int,syncing:Boole
                 if(syncing) CircularProgressIndicator(Modifier.size(19.dp),color=Gold,strokeWidth=2.dp) else Icon(Icons.Default.Sync,"تحديث المدينة",tint=Gold)
             }
         }
-        Spacer(Modifier.height(8.dp))
-        Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(9.dp)).background(Ink.copy(.85f)).border(1.dp,Bronze.copy(.5f),RoundedCornerShape(9.dp)).clickable(onClick=onResources).padding(vertical=6.dp),horizontalArrangement=Arrangement.SpaceEvenly) {
+        Spacer(Modifier.height(6.dp))
+        Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(9.dp)).background(Ink.copy(.85f)).border(1.dp,Bronze.copy(.5f),RoundedCornerShape(9.dp)).clickable(onClick=onResources).testTag("resource-inventory").padding(vertical=6.dp),horizontalArrangement=Arrangement.SpaceEvenly) {
             listOf("food","wood","stone","gold").forEach {k ->
                 Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(3.dp)) {
                     Icon(resourceIcon(k),title(k),tint=if(k=="wood") Mint else Gold,modifier=Modifier.size(18.dp))
@@ -71,16 +73,16 @@ fun RealmHud(name:String,power:Long,resources:JSONObject,level:Int,syncing:Boole
 }
 
 @Composable
-fun RoyalDock(selected:String,onSelect:(String)->Unit) {
+fun RoyalDock(selected:String,reduced:Boolean=false,onSelect:(String)->Unit) {
     val tabs=listOf("city" to "المدينة","world" to "المملكة","heroes" to "الأبطال","army" to "الجيش","shop" to "المتجر","more" to "الديوان")
     Column(Modifier.background(Brush.verticalGradient(listOf(Color(0xFF34404A),Color(0xFF101C29)))).navigationBarsPadding()) {
         HorizontalDivider(color=Gold.copy(.65f),thickness=1.dp)
         Row(Modifier.fillMaxWidth().padding(horizontal=4.dp,vertical=4.dp)) {
             tabs.forEach {(key,label)->
                 val active=selected==key || (key=="more"&&selected=="missions")
-                val rise by animateFloatAsState(if(active) 1.1f else 1f,tween(180),label="dock selection")
-                Column(Modifier.weight(1f).testTag("tab-$key").clip(RoundedCornerShape(10.dp)).background(if(active) Gold.copy(.14f) else Color.Transparent).clickable{onSelect(key)}.padding(vertical=5.dp),horizontalAlignment=Alignment.CenterHorizontally) {
-                    Box(Modifier.size(39.dp).scale(rise),contentAlignment=Alignment.Center) {
+                val rise by animateFloatAsState(if(active) 1.08f else 1f,tween(if(reduced) 0 else 180),label="dock selection")
+                Column(Modifier.weight(1f).testTag("tab-$key").clip(RoundedCornerShape(10.dp)).background(if(active) Gold.copy(.14f) else Color.Transparent).selectable(active,role=Role.Tab,onClick={onSelect(key)}).padding(vertical=3.dp),horizontalAlignment=Alignment.CenterHorizontally) {
+                    Box(Modifier.size(34.dp).scale(rise),contentAlignment=Alignment.Center) {
                         when(key) {
                             "city"->Image(painterResource(R.drawable.castle_sprite),null,Modifier.fillMaxSize())
                             "heroes"->Image(painterResource(R.drawable.hero_iron),null,Modifier.size(34.dp).clip(RoundedCornerShape(9.dp)).border(1.dp,Gold,RoundedCornerShape(9.dp)),contentScale=ContentScale.Crop)
@@ -122,11 +124,12 @@ fun QuestRibbon(heading:String,description:String,progress:Float,onClick:()->Uni
 
 @Composable
 fun RoyalHeading(eyebrow:String,heading:String,subtitle:String="") {
-    Column(Modifier.fillMaxWidth().padding(vertical=8.dp),verticalArrangement=Arrangement.spacedBy(3.dp)) {
-        Text(eyebrow,color=Mint,fontSize=10.sp,fontWeight=FontWeight.Bold,letterSpacing=2.sp)
-        Text(heading,color=Parchment,fontSize=28.sp,fontWeight=FontWeight.Black)
-        if(subtitle.isNotEmpty())Text(subtitle,color=Parchment.copy(.65f),fontSize=12.sp)
-        Row(Modifier.padding(top=5.dp),verticalAlignment=Alignment.CenterVertically) {Box(Modifier.size(5.dp).rotate(45f).background(Gold));Box(Modifier.width(66.dp).height(1.dp).background(Brush.horizontalGradient(listOf(Gold,Color.Transparent))))}
+    Row(Modifier.fillMaxWidth().padding(vertical=5.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(10.dp)) {
+        Box(Modifier.width(3.dp).height(38.dp).background(Brush.verticalGradient(listOf(Gold,Emerald)),CircleShape))
+        Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(2.dp)) {
+            Text(heading,color=Parchment,fontSize=22.sp,fontWeight=FontWeight.Black)
+            if(subtitle.isNotEmpty()) Text(subtitle,color=Parchment.copy(.68f),fontSize=11.sp)
+        }
     }
 }
 
@@ -144,7 +147,7 @@ fun ResourceCosts(costs:Map<String,Long>,resources:JSONObject) {
 @Composable
 fun ChoiceTabs(options:List<Pair<String,String>>,selected:String,onSelect:(String)->Unit) {
     Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).background(Ink).border(1.dp,Bronze.copy(.45f),RoundedCornerShape(10.dp)).padding(4.dp),horizontalArrangement=Arrangement.spacedBy(4.dp)) {
-        options.forEach{(key,label)->Box(Modifier.weight(1f).clip(RoundedCornerShape(7.dp)).background(if(selected==key) Emerald else Color.Transparent).clickable{onSelect(key)}.padding(vertical=11.dp),contentAlignment=Alignment.Center){Text(label,color=if(selected==key) Color.White else Parchment.copy(.65f),fontSize=12.sp,fontWeight=FontWeight.Bold,maxLines=1)} }
+        options.forEach{(key,label)->Box(Modifier.weight(1f).clip(RoundedCornerShape(7.dp)).background(if(selected==key) Emerald else Color.Transparent).selectable(selected==key,role=Role.Tab,onClick={onSelect(key)}).heightIn(min=44.dp).padding(vertical=9.dp),contentAlignment=Alignment.Center){Text(label,color=if(selected==key) Color.White else Parchment.copy(.65f),fontSize=12.sp,fontWeight=FontWeight.Bold,maxLines=1)} }
 }
 
 }

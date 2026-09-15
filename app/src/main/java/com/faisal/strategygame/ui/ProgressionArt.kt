@@ -23,7 +23,7 @@ import com.faisal.strategygame.R
 @Composable
 fun HeroShowcase(key:String,level:Int,owned:Boolean,reduced:Boolean) {
     Crossfade(key,animationSpec=tween(if(reduced) 0 else 250),label="hero portrait") {hero->
-        Box(Modifier.fillMaxWidth().height(320.dp).clip(RoundedCornerShape(18.dp)).background(Ink).border(1.dp,Bronze,RoundedCornerShape(18.dp))) {
+        Box(Modifier.fillMaxWidth().height(225.dp).clip(RoundedCornerShape(18.dp)).background(Ink).border(1.dp,Bronze,RoundedCornerShape(18.dp))) {
             Image(painterResource(heroArt(hero)),heroName(hero),Modifier.fillMaxSize(),contentScale=ContentScale.Crop,alignment=Alignment.TopCenter)
             Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Ink.copy(.08f),Color.Transparent,Ink.copy(.97f)))))
             Text(if(owned) "قائد مُجنّد" else "متاح للتجنيد",Modifier.align(Alignment.TopStart).padding(12.dp).background(Ink.copy(.82f),RoundedCornerShape(6.dp)).border(1.dp,Bronze,RoundedCornerShape(6.dp)).padding(horizontal=10.dp,vertical=5.dp),color=Gold,fontSize=11.sp,fontWeight=FontWeight.Bold)
@@ -38,7 +38,7 @@ fun HeroShowcase(key:String,level:Int,owned:Boolean,reduced:Boolean) {
 
 @Composable
 fun TroopShowcase(type:String,tier:Int,total:Long) {
-    Box(Modifier.fillMaxWidth().height(260.dp).clip(RoundedCornerShape(18.dp)).background(Brush.radialGradient(listOf(Color(0xFF436578),Ink))).border(1.dp,Bronze,RoundedCornerShape(18.dp))) {
+    Box(Modifier.fillMaxWidth().height(185.dp).clip(RoundedCornerShape(18.dp)).background(Brush.radialGradient(listOf(Color(0xFF436578),Ink))).border(1.dp,Bronze,RoundedCornerShape(18.dp))) {
         Image(painterResource(troopArt(type)),title(type),Modifier.fillMaxSize(),contentScale=ContentScale.Fit)
         Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color.Transparent,Color.Transparent,Ink.copy(.96f)))))
         Text("T$tier",Modifier.align(Alignment.TopStart).padding(12.dp).background(Emerald,RoundedCornerShape(8.dp)).border(1.dp,Gold,RoundedCornerShape(8.dp)).padding(9.dp),fontSize=20.sp,fontWeight=FontWeight.Black,color=Gold)
@@ -64,12 +64,12 @@ fun TierTrack(selected:Int,buildingLevel:Int,onSelect:(Int)->Unit) {
 
 @Composable
 fun TreasuryBanner(balance:Long,bonus:Long) {
-    Box(Modifier.fillMaxWidth().height(215.dp).clip(RoundedCornerShape(18.dp)).background(Brush.radialGradient(listOf(Color(0xFF345C72),Ink))).border(1.dp,Bronze,RoundedCornerShape(18.dp))) {
-        Image(painterResource(R.drawable.treasure_chest),null,Modifier.align(Alignment.CenterEnd).width(205.dp).height(210.dp))
+    Box(Modifier.fillMaxWidth().height(135.dp).clip(RoundedCornerShape(18.dp)).background(Brush.radialGradient(listOf(Color(0xFF345C72),Ink))).border(1.dp,Bronze,RoundedCornerShape(18.dp))) {
+        Image(painterResource(R.drawable.treasure_chest),null,Modifier.align(Alignment.CenterEnd).width(150.dp).height(140.dp))
         Box(Modifier.fillMaxSize().background(Brush.horizontalGradient(listOf(Color.Transparent,Ink.copy(.9f)))))
         Column(Modifier.align(Alignment.CenterStart).padding(18.dp)) {
             Text("خزينة المملكة",fontSize=12.sp,color=Mint,fontWeight=FontWeight.Bold)
-            Text(compact(balance),fontSize=37.sp,color=Gold,fontWeight=FontWeight.Black)
+            Text(compact(balance),fontSize=30.sp,color=Gold,fontWeight=FontWeight.Black)
             Text("جوهرة",fontSize=15.sp,color=Parchment)
             Text("${compact(bonus)} جواهر مكافآت",fontSize=10.sp,color=Mint)
         }

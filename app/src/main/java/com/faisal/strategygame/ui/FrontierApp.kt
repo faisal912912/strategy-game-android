@@ -19,6 +19,7 @@ import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -27,6 +28,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -84,7 +86,7 @@ private fun Gate(vm: FrontierViewModel) {
         Column(Modifier.padding(24.dp), verticalArrangement=Arrangement.spacedBy(14.dp)) {
             Text("حُدود المملكة", fontSize=34.sp, fontWeight=FontWeight.Black, color=Gold)
             Text("ابنِ مدينتك. جهّز جيشك. اكتشف العالم.", color=Mint)
-            Text("المملكة الأولى • بيتا 0.4", color=Parchment, style=MaterialTheme.typography.labelLarge)
+            Text("المملكة الأولى • بيتا 0.5", color=Parchment, style=MaterialTheme.typography.labelLarge)
             Row(horizontalArrangement=Arrangement.spacedBy(8.dp)) {
                 FilterChip(!register,{register=false},label={Text("دخول")},enabled=!vm.busy)
                 FilterChip(register,{register=true},label={Text("حساب جديد")},enabled=!vm.busy)
@@ -115,14 +117,16 @@ internal fun Kingdom(vm: FrontierViewModel) {
     val ask: (Command)->Unit = { confirmation=it }
     var showJobs by remember { mutableStateOf(false) }
     var showResources by remember { mutableStateOf(false) }
+    var showProfile by remember { mutableStateOf(false) }
     val scene=vm.tab in listOf("city","world")
-    val listState=rememberLazyListState()
-    LaunchedEffect(vm.tab) {listState.scrollToItem(0)}
+    val screenStates=rememberSaveableStateHolder()
+    val keyboard=LocalSoftwareKeyboardController.current
+    LaunchedEffect(vm.tab) {keyboard?.hide()}
     BackHandler(vm.tab!="city") { vm.selectTab("city") }
     val hud: @Composable ()->Unit = {
         Column {
             RealmHud(vm.me.optString("username"),vm.me.optLong("power"),vm.me.obj("resources"),
-                vm.me.obj("city").optInt("level",1),vm.busy||vm.refreshing,{vm.selectTab("more")},{showResources=true},{vm.refresh()})
+                vm.me.obj("city").optInt("level",1),vm.busy||vm.refreshing,{showProfile=true},{showResources=true},{vm.refresh()})
             vm.error?.let { Notice(it,true) }
             vm.pending?.let { c -> Row(Modifier.fillMaxWidth().background(Slate).padding(horizontal=12.dp),verticalAlignment=Alignment.CenterVertically) {
                 Text("بانتظار تأكيد: ${c.title}",Modifier.weight(1f),fontSize=12.sp,color=Gold)
@@ -130,9 +134,11 @@ internal fun Kingdom(vm: FrontierViewModel) {
             } }
         }
     }
-    Scaffold(containerColor=Ink,contentWindowInsets=WindowInsets(0,0,0,0),snackbarHost={SnackbarHost(snackbar)},
-        topBar={if(!scene)hud()},bottomBar={RoyalDock(vm.tab){vm.selectTab(it)}}) { padding ->
+    Scaffold(modifier=Modifier.imePadding(),containerColor=Ink,contentWindowInsets=WindowInsets(0,0,0,0),snackbarHost={SnackbarHost(snackbar)},
+        topBar={if(!scene)hud()},bottomBar={Column {ActivityStrip(vm){showJobs=true};RoyalDock(vm.tab,vm.reduceMotion){vm.selectTab(it)}}}) { padding ->
         Box(Modifier.padding(padding).fillMaxSize()) {
+            screenStates.SaveableStateProvider(vm.tab) {
+            val listState=rememberLazyListState()
             when(vm.tab) {
                 "city" -> TownScreen(vm,ask)
                 "world" -> KingdomMap(vm,ask)
@@ -144,28 +150,34 @@ internal fun Kingdom(vm: FrontierViewModel) {
                                 "heroes" -> HeroesScreen(vm,ask)
                                 "shop" -> ShopScreen(vm,ask)
                                 "missions" -> {RoyalHeading("سجل المملكة","المهام والمكافآت");Journal(vm,ask){a,b->detail=a to b}}
-                                else -> {RoyalHeading("مجلس الحاكم","ديوان المملكة","التحالف والحقيبة والإعدادات");ActionButton("المهام والسجل") {vm.selectTab("missions")};More(vm,ask)}
+                                else -> {RoyalHeading("مجلس الحاكم","ديوان المملكة","كل ما تحتاجه لإدارة مملكتك");More(vm,ask)}
                             }
                         }
                     }
                 }
             }
-            if(scene)Box(Modifier.align(Alignment.TopCenter)){hud()}
-            if(vm.jobs.isNotEmpty()) {
-                Row(Modifier.align(if(scene) Alignment.TopStart else Alignment.BottomCenter).then(if(scene) Modifier.statusBarsPadding().padding(top=116.dp,start=10.dp) else Modifier.padding(8.dp)).clip(RoundedCornerShape(10.dp)).background(Ink.copy(.95f)).border(1.dp,Bronze,RoundedCornerShape(10.dp)).clickable{showJobs=true}.padding(8.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(6.dp)) {
-                    Icon(Icons.Default.Construction,null,tint=Gold,modifier=Modifier.size(19.dp))
-                    Text("${vm.jobs.size} • "+countdown(vm.jobs.first().ends,vm.now),color=Parchment,fontSize=11.sp)
-                    Icon(Icons.Default.ExpandMore,"تفاصيل الأعمال",tint=Mint,modifier=Modifier.size(16.dp))
-                }
             }
+            if(scene)Box(Modifier.align(Alignment.TopCenter)){hud()}
         }
     }
-    if(showJobs) AlertDialog(onDismissRequest={showJobs=false},title={Text("طابور أعمال المملكة")},text={Column(Modifier.verticalScroll(rememberScrollState())) {Jobs(vm){showJobs=false;ask(it)}}},confirmButton={TextButton({showJobs=false}){Text("إغلاق")}})
-    if(showResources) AlertDialog(onDismissRequest={showResources=false},title={Text("مخزون المدينة")},text={Column(verticalArrangement=Arrangement.spacedBy(14.dp)){
-        listOf("food","wood","stone","gold").forEach{k->Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(10.dp)) {
+    if(showJobs) RoyalSheet("طابور أعمال المملكة",{showJobs=false}) {Jobs(vm){showJobs=false;ask(it)}}
+    if(showProfile) RoyalSheet("ملف الحاكم",{showProfile=false}) {
+        GovernorCard(vm)
+        Panel {
+            Text("القوات المتاحة",color=Gold,fontWeight=FontWeight.Bold)
+            listOf("infantry","cavalry","archers").forEach {key->
+                Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween) {Text(title(key));Text(num(vm.me.obj("army").optLong(key)),color=Mint)}
+            }
+        }
+        ActionButton("فتح ديوان المملكة"){showProfile=false;vm.selectTab("more")}
+    }
+    if(showResources) RoyalSheet("مخزون المدينة",{showResources=false}) {
+        Text("رصيد الموارد المتاح للبناء والتدريب",color=Mint,fontSize=12.sp)
+        listOf("food","wood","stone","gold").forEach{k->Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(Ink).padding(14.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(10.dp)) {
             Icon(resourceIcon(k),null,tint=Gold);Text(title(k),Modifier.weight(1f));Text(num(vm.me.obj("resources").optLong(k)),color=Mint,fontWeight=FontWeight.Bold)
         }}
-    }},confirmButton={TextButton({showResources=false}){Text("إغلاق")}})
+        ActionButton("البحث عن موارد في المملكة"){showResources=false;vm.selectTab("world")}
+    }
     confirmation?.let { command -> AlertDialog(onDismissRequest={confirmation=null},title={Text(command.title)},text={Text(commandDescription(command))},
         confirmButton={TextButton({confirmation=null;vm.submit(command)},enabled=vm.canAct) {Text("تأكيد الأمر")}},dismissButton={TextButton({confirmation=null}) {Text("إلغاء")}}) }
     detail?.let { (heading,body) -> AlertDialog(onDismissRequest={detail=null},title={Text(heading)},text={Text(body,Modifier.verticalScroll(rememberScrollState()))},confirmButton={TextButton({detail=null}){Text("إغلاق")}}) }
@@ -360,6 +372,21 @@ private fun Journal(vm: FrontierViewModel, ask: (Command)->Unit, detail:(String,
 private fun More(vm: FrontierViewModel,ask:(Command)->Unit) {
     var allianceName by rememberSaveable {mutableStateOf("")};var tag by rememberSaveable {mutableStateOf("")};var allianceId by rememberSaveable {mutableStateOf("")}
     var logout by remember {mutableStateOf(false)}
+    var page by rememberSaveable {mutableStateOf("home")}
+    BackHandler(page!="home") {page="home"}
+    if(page=="home") {
+        GovernorCard(vm)
+        Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(10.dp)) {
+            CouncilTile("التحالف","الأعضاء والتبرعات",Icons.Default.Groups,Modifier.weight(1f)){page="alliance"}
+            CouncilTile("الحقيبة","العناصر والمكافآت",Icons.Default.Inventory2,Modifier.weight(1f)){page="inventory"}
+        }
+        Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(10.dp)) {
+            CouncilTile("المهام والبريد","السجل ومكافآت المملكة",Icons.Default.Assignment,Modifier.weight(1f)){vm.selectTab("missions")}
+            CouncilTile("لوحة القوة","ترتيب حكّام المملكة",Icons.Default.EmojiEvents,Modifier.weight(1f)){page="ranking"}
+        }
+        CouncilTile("الإعدادات","الحركة والحساب",Icons.Default.Settings,Modifier.fillMaxWidth()){page="settings"}
+    } else TextButton({page="home"}) {Icon(Icons.Default.ArrowForward,null);Spacer(Modifier.width(6.dp));Text("العودة إلى الديوان")}
+    if(page=="alliance") {
     Section("التحالف")
     val alliance=vm.doc("/alliances/me")
     Panel {
@@ -377,23 +404,31 @@ private fun More(vm: FrontierViewModel,ask:(Command)->Unit) {
             ActionButton("انضمام",vm.canAct&&(allianceId.toLongOrNull()?:0)>0){ask(Command("الانضمام للتحالف $allianceId","/alliances/join",json("alliance_id" to allianceId.toLong())))}
         }
     }
+    }
+    if(page=="inventory") {
     Section("الحقيبة")
     val items=vm.doc("/inventory").rows("items")
-    if(items.isEmpty()) Notice("حقيبتك فارغة. تظهر العناصر المكتسبة هنا.")
+    if(items.isEmpty()) EmptyState("حقيبتك فارغة","تظهر هنا الموارد والعناصر التي تكسبها من اللعب.")
     items.forEach {item->Panel {
         val key=item.optString("item_key",item.optString("key"))
         Text(item.optString("name",title(key)),fontWeight=FontWeight.Bold)
         Text("الكمية ${num(item.optLong("quantity"))}")
         ActionButton("استخدام عنصر واحد",vm.canAct&&item.optLong("quantity")>0){ask(Command("استخدام ${title(key)}","/inventory/use",json("item_key" to key,"count" to 1)))}
     } }
+    }
+    if(page=="ranking") {
     Section("لوحة القوة")
+    if(vm.doc("/leaderboards/power").rows("ranking").isEmpty()) EmptyState("لا يوجد ترتيب بعد","تظهر قائمة الحكّام عندما تتوفر بيانات المملكة.",Icons.Default.EmojiEvents)
     Panel { vm.doc("/leaderboards/power").rows("ranking").take(10).forEach {r->Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween){Text("${r.optInt("rank")}. ${r.optString("username")}",Modifier.weight(1f));Text(num(r.optLong("power")),color=Gold)}} }
+    }
+    if(page=="settings") {
     Section("الإعدادات")
     Panel {
         Row(verticalAlignment=Alignment.CenterVertically){Text("تقليل حركة الخلفية",Modifier.weight(1f));Switch(vm.reduceMotion,{vm.setMotion(it)})}
         Text("حُدود المملكة • ${BuildConfig.VERSION_NAME} بيتا",color=Gold)
         Text("المدينة مرتبطة بحسابك. احتفظ باسم الحساب وكلمة المرور.",style=MaterialTheme.typography.bodySmall)
         TextButton({logout=true},enabled=!vm.busy&&!vm.refreshing){Text("تسجيل الخروج")}
+    }
     }
     if(logout) AlertDialog(onDismissRequest={logout=false},title={Text("تسجيل الخروج؟")},text={Text("تبقى مدينتك على السيرفر. ستحتاج إلى بيانات حسابك للعودة.")},confirmButton={TextButton({logout=false;vm.logout()}){Text("خروج")}},dismissButton={TextButton({logout=false}){Text("إلغاء")}})
 }

@@ -3,6 +3,9 @@ package com.faisal.strategygame.ui
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.platform.testTag
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -54,16 +57,16 @@ fun HeroesScreen(vm: FrontierViewModel, ask: (Command)->Unit) {
     if(!gear) {
         if(current==null) { Text("جارٍ تحميل الأبطال…",color=Mint); return }
         val key=current.optString("key"); val owned=current.optBoolean("owned")
-        HeroShowcase(key,current.optInt("level"),owned,vm.reduceMotion)
-        Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+        Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(8.dp)) {
             commanders.forEach { c -> val k=c.optString("key")
-                Column(Modifier.weight(1f).clip(RoundedCornerShape(12.dp)).border(if(k==key) 2.dp else 1.dp,if(k==key) Gold else Slate,RoundedCornerShape(12.dp)).clickable {selected=k}.padding(3.dp),horizontalAlignment=Alignment.CenterHorizontally) {
-                    Image(painterResource(heroArt(k)),heroName(k),Modifier.fillMaxWidth().aspectRatio(1f).clip(RoundedCornerShape(9.dp)),contentScale=ContentScale.Crop)
+                Column(Modifier.width(78.dp).testTag("hero-choice-$k").clip(RoundedCornerShape(12.dp)).border(if(k==key) 2.dp else 1.dp,if(k==key) Gold else Slate,RoundedCornerShape(12.dp)).selectable(k==key,role=Role.Tab,onClick={selected=k}).padding(3.dp),horizontalAlignment=Alignment.CenterHorizontally) {
+                    Image(painterResource(heroArt(k)),null,Modifier.fillMaxWidth().aspectRatio(1f).clip(RoundedCornerShape(9.dp)),contentScale=ContentScale.Crop)
                     Text(heroName(k),fontSize=10.sp,maxLines=1)
                     Text(if(c.optBoolean("owned")) "مُجنّد" else "مقفل",color=if(c.optBoolean("owned")) Mint else Gold,fontSize=10.sp)
                 }
             }
         }
+        HeroShowcase(key,current.optInt("level"),owned,vm.reduceMotion)
         Panel {
             Text("خصائص القائد",fontWeight=FontWeight.Bold,color=Gold)
             Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceEvenly) {
@@ -111,7 +114,7 @@ fun HeroesScreen(vm: FrontierViewModel, ask: (Command)->Unit) {
 @Composable
 fun MilitaryScreen(vm: FrontierViewModel,ask:(Command)->Unit) {
     var type by rememberSaveable {mutableStateOf("infantry")};var tier by rememberSaveable {mutableIntStateOf(1)}
-    var amount by rememberSaveable {mutableStateOf("100")}; var support by rememberSaveable {mutableStateOf(false)}
+    var amount by rememberSaveable {mutableStateOf("100")}; var allTiers by rememberSaveable {mutableStateOf(false)}; var support by rememberSaveable {mutableStateOf(false)}
     RoyalHeading("قوة المملكة","معسكر الجيش","درّب القوات وافتح فئات أعلى بتطوير المباني")
     ChoiceTabs(listOf("train" to "التدريب","support" to "العلاج والأبحاث"),if(support) "support" else "train"){support=it=="support"}
     if(support) {ArmySupport(vm,ask);return}
@@ -131,7 +134,7 @@ fun MilitaryScreen(vm: FrontierViewModel,ask:(Command)->Unit) {
         Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(6.dp)) {
             listOf("100" to 100L,"1,000" to 1000L,"الأقصى" to maximum).forEach{(label,value)->OutlinedButton({amount=value.toString()},modifier=Modifier.weight(1f),enabled=value>0){Text(label,fontSize=11.sp)}}
         }
-        OutlinedTextField(amount,{amount=it.filter(Char::isDigit).take(6)},Modifier.fillMaxWidth(),label={Text("عدد الجنود • 1 إلى 100,000")},keyboardOptions=KeyboardOptions(keyboardType=KeyboardType.Number),singleLine=true)
+        TrainingAmountPicker(amount,maximum){amount=it}
         val res=vm.me.obj("resources");val unlocked=level>=tierBuildingLevel(tier)
         val enough=cost!=null&&res.optLong("food")>=cost.food&&res.optLong("wood")>=cost.wood&&res.optLong("gold")>=cost.gold
         cost?.let {ResourceCosts(mapOf("food" to it.food,"wood" to it.wood,"gold" to it.gold),res);Text("مدة التدريب: ${countdown(it.seconds*1000,0)}",color=Mint,style=MaterialTheme.typography.bodySmall)}
@@ -142,7 +145,8 @@ fun MilitaryScreen(vm: FrontierViewModel,ask:(Command)->Unit) {
         if(!unlocked) TextButton({vm.selectTab("city")}) {Text("الذهاب إلى المدينة للتطوير")}
         TextButton({ask(Command("استلام التدريب المكتمل","/game/training/claim",JSONObject()))},enabled=vm.canAct){Text("استلام تدريب سابق")}
     }
-    Panel {
+    TextButton({allTiers=!allTiers}) {Text(if(allTiers) "إخفاء جدول الفئات" else "عرض متطلبات جميع الفئات");Icon(if(allTiers) Icons.Default.ExpandLess else Icons.Default.ExpandMore,null)}
+    if(allTiers) Panel {
         Text("متطلبات جميع الفئات",fontWeight=FontWeight.Bold,color=Gold)
         Text("الفئة   •   مستوى المبنى   •   غذاء / خشب / ذهب للجندي",fontSize=11.sp)
         (1..5).forEach { t ->val c=trainingCost(t,1);Text("T$t     •     ${tierBuildingLevel(t)}     •     ${c.food} / ${c.wood} / ${c.gold}",color=if(t==tier) Gold else Color.White,fontSize=14.sp)}
@@ -175,7 +179,7 @@ fun ShopScreen(vm:FrontierViewModel,ask:(Command)->Unit) {
     ChoiceTabs(listOf("offers" to "الباقات","topup" to "الشحن","orders" to "مشترياتي"),section){section=it}
     if(section=="orders") {
         val orders=vm.doc("/shop/v3/orders").rows("orders")
-        if(orders.isEmpty()) Panel {Text("لا توجد مشتريات بعد.",color=Mint)}
+        if(orders.isEmpty()) EmptyState("لا توجد مشتريات بعد","ستظهر الباقات التي تشتريها هنا مع تفاصيل الطلب.",Icons.Default.ReceiptLong)
         orders.forEach{o->Panel {Text("طلب #${o.optLong("id")}",color=Gold,fontWeight=FontWeight.Bold);Text(title(o.optString("product_key")));Text("${num(o.optLong("total_gems"))} جوهرة • ${o.optInt("quantity")} باقة");Text(o.optString("created_at").take(19),fontSize=12.sp)}}
     } else {
         val topup=section=="topup"

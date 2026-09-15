@@ -1,3 +1,7 @@
+# Beta 0.5 — واجهة أكثر وضوحًا
+
+واجهة مدمجة، ديوان منظّم، حفظ الاختيارات والتمرير بين الصفحات، أدوات خريطة مجمّعة وتحكم أسهل في التدريب. راجع [تفاصيل النسخة](docs/BETA_0_5.md).
+
 ## Beta 0.4 — Kingdom interface overhaul
 
 A scene-first portrait client with a compact HUD, original illustrated map targets, interactive minimap/filter/nearby search, contextual building costs, cinematic heroes and a T1–T5 army progression track. See [release scope and validation](docs/BETA_0_4.md). The current default test gateway is `https://grows-warnings-rolling-volunteer.trycloudflare.com`; change it under connection settings when the temporary tunnel URL changes. Existing saved gateway and account data are preserved.
