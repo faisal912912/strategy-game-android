@@ -10,6 +10,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.junit4.ComposeContentTestRule
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.faisal.strategygame.ui.*
@@ -22,16 +23,7 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class SceneInteractionTest {
     @get:Rule val compose=createComposeRule()
-    private fun screenshot(name:String) {
-        val bitmap=compose.onRoot().captureToImage().asAndroidBitmap()
-        val resolver=InstrumentationRegistry.getInstrumentation().targetContext.contentResolver
-        val uri=resolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI,ContentValues().apply{
-            put(MediaStore.Images.Media.DISPLAY_NAME,"$name.png")
-            put(MediaStore.Images.Media.MIME_TYPE,"image/png")
-            put(MediaStore.Images.Media.RELATIVE_PATH,"Pictures/FrontierQA")
-        })!!
-        resolver.openOutputStream(uri)!!.use{assertTrue(bitmap.compress(Bitmap.CompressFormat.PNG,100,it))}
-    }
+    private fun screenshot(name:String)=captureTestScreenshot(compose,name)
     @Test fun cityBuildingOpensAndCameraControlsRemainReachable() {
         var selected=""
         compose.setContent {MaterialTheme {TownBoard(townSpots.associate{it.key to 3},null,true){selected=it}}}
@@ -61,3 +53,14 @@ class SceneInteractionTest {
         screenshot("hero-army")
     }
 }
+
+internal fun captureTestScreenshot(compose:ComposeContentTestRule,name:String) {
+        val bitmap=compose.onRoot().captureToImage().asAndroidBitmap()
+        val resolver=InstrumentationRegistry.getInstrumentation().targetContext.contentResolver
+        val uri=resolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI,ContentValues().apply{
+            put(MediaStore.Images.Media.DISPLAY_NAME,"$name.png")
+            put(MediaStore.Images.Media.MIME_TYPE,"image/png")
+            put(MediaStore.Images.Media.RELATIVE_PATH,"Pictures/FrontierQA")
+        })!!
+        resolver.openOutputStream(uri)!!.use{assertTrue(bitmap.compress(Bitmap.CompressFormat.PNG,100,it))}
+    }

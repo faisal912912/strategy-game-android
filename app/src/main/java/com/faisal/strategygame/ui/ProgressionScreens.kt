@@ -32,8 +32,9 @@ private fun effectName(key: String) = when { key.contains("attack")->"الهجو
 
 @Composable
 fun ArtworkBanner(image: Int, heading: String, subtitle: String, modifier: Modifier = Modifier) {
-    Box(modifier.fillMaxWidth().height(280.dp).clip(RoundedCornerShape(20.dp))) {
-        Image(painterResource(image),heading,Modifier.fillMaxSize(),contentScale=ContentScale.Crop)
+    Box(modifier.fillMaxWidth().height(280.dp).clip(RoundedCornerShape(20.dp)).background(Ink)) {
+        val isTroop=image in listOf(R.drawable.unit_infantry,R.drawable.unit_cavalry,R.drawable.unit_archers)
+        Image(painterResource(image),heading,Modifier.fillMaxSize(),contentScale=if(isTroop) ContentScale.Fit else ContentScale.Crop)
         Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color.Transparent,Ink.copy(.15f),Ink))))
         Column(Modifier.align(Alignment.BottomStart).padding(20.dp)) {
             Text(subtitle,color=Gold,fontSize=12.sp,fontWeight=FontWeight.Bold)

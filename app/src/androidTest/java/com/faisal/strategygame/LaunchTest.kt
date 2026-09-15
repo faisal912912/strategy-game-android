@@ -12,6 +12,7 @@ class LaunchTest {
     @get:Rule val compose = createAndroidComposeRule<MainActivity>()
     @Test fun portraitRegistrationRequiresCredentials() {
         compose.onNodeWithText("حُدود المملكة").assertExists()
+        captureTestScreenshot(compose,"portrait-login")
         compose.onNodeWithText("حساب جديد").performClick()
         compose.onNodeWithText("أنشئ مملكتي").performScrollTo().assertIsNotEnabled()
         compose.onNodeWithText("اسم الحساب").performTextInput("governor")
