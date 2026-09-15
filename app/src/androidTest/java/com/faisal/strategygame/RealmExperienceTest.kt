@@ -1,12 +1,13 @@
 package com.faisal.strategygame
 
 import android.app.Application
+import androidx.activity.compose.setContent
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.test.*
-import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.test.platform.app.InstrumentationRegistry
 import com.faisal.strategygame.ui.*
 import com.faisal.strategygame.ui.theme.StrategyGameTheme
@@ -17,7 +18,7 @@ import org.junit.Assert.*
 
 /** Render the actual signed-in UI using isolated test documents. No credentials or network calls. */
 class RealmExperienceTest {
-    @get:Rule val compose=createComposeRule()
+    @get:Rule val compose=createAndroidComposeRule<MainActivity>()
     @Suppress("UNCHECKED_CAST")
     private fun fixture():FrontierViewModel {
         val app=InstrumentationRegistry.getInstrumentation().targetContext.applicationContext as Application
@@ -43,7 +44,7 @@ class RealmExperienceTest {
         return vm
     }
     private fun launch(vm:FrontierViewModel) {
-        compose.setContent{StrategyGameTheme{CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl){Kingdom(vm)}}}
+        compose.runOnUiThread {compose.activity.setContent{StrategyGameTheme{CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl){Kingdom(vm)}}}}
     }
     @Test fun cityHudBuildingDetailsAndDockWorkTogether() {
         val vm=fixture();launch(vm)
@@ -85,6 +86,7 @@ class RealmExperienceTest {
         compose.onNodeWithTag("training-amount").performScrollTo().performTextReplacement("321")
         compose.onNodeWithContentDescription("زيادة عدد الجنود").performClick()
         compose.onNodeWithTag("training-amount").assertTextContains("421")
+        compose.onNodeWithTag("training-amount").performImeAction()
         captureTestScreenshot(compose,"beta5-training")
         compose.onNodeWithTag("tab-heroes").performClick()
         compose.onNodeWithTag("hero-choice-eagle_eye").assertIsSelected()

@@ -10,8 +10,6 @@ import androidx.compose.foundation.*
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -137,25 +135,23 @@ internal fun Kingdom(vm: FrontierViewModel) {
     Scaffold(modifier=Modifier.imePadding(),containerColor=Ink,contentWindowInsets=WindowInsets(0,0,0,0),snackbarHost={SnackbarHost(snackbar)},
         topBar={if(!scene)hud()},bottomBar={Column {ActivityStrip(vm){showJobs=true};RoyalDock(vm.tab,vm.reduceMotion){vm.selectTab(it)}}}) { padding ->
         Box(Modifier.padding(padding).fillMaxSize()) {
-            screenStates.SaveableStateProvider(vm.tab) {
-            val listState=rememberLazyListState()
-            when(vm.tab) {
-                "city" -> TownScreen(vm,ask)
-                "world" -> KingdomMap(vm,ask)
-                else -> LazyColumn(Modifier.fillMaxSize(),state=listState,contentPadding=PaddingValues(start=16.dp,end=16.dp,bottom=24.dp),verticalArrangement=Arrangement.spacedBy(12.dp)) {
-                    item {
-                        Column(verticalArrangement=Arrangement.spacedBy(12.dp)) {
-                            when(vm.tab) {
-                                "army" -> MilitaryScreen(vm,ask)
-                                "heroes" -> HeroesScreen(vm,ask)
-                                "shop" -> ShopScreen(vm,ask)
-                                "missions" -> {RoyalHeading("سجل المملكة","المهام والمكافآت");Journal(vm,ask){a,b->detail=a to b}}
-                                else -> {RoyalHeading("مجلس الحاكم","ديوان المملكة","كل ما تحتاجه لإدارة مملكتك");More(vm,ask)}
-                            }
+            val currentTab=vm.tab
+            screenStates.SaveableStateProvider(currentTab) {
+                when(currentTab) {
+                    "city" -> TownScreen(vm,ask)
+                    "world" -> KingdomMap(vm,ask)
+                    // A screen is one column: keep its forms directly under the screen registry.
+                    // Nesting a single lazy item here discarded its saveable form state on tab changes.
+                    else -> Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(start=16.dp,end=16.dp,bottom=24.dp),verticalArrangement=Arrangement.spacedBy(12.dp)) {
+                        when(currentTab) {
+                            "army" -> MilitaryScreen(vm,ask)
+                            "heroes" -> HeroesScreen(vm,ask)
+                            "shop" -> ShopScreen(vm,ask)
+                            "missions" -> {RoyalHeading("سجل المملكة","المهام والمكافآت");Journal(vm,ask){a,b->detail=a to b}}
+                            else -> {RoyalHeading("مجلس الحاكم","ديوان المملكة","كل ما تحتاجه لإدارة مملكتك");More(vm,ask)}
                         }
                     }
                 }
-            }
             }
             if(scene)Box(Modifier.align(Alignment.TopCenter)){hud()}
         }

@@ -4,6 +4,7 @@ import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.*
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -15,9 +16,12 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.*
 import com.faisal.strategygame.*
@@ -84,9 +88,11 @@ fun EmptyState(heading:String,description:String,icon:ImageVector=Icons.Default.
 @Composable
 fun TrainingAmountPicker(value:String,maximum:Long,onChange:(String)->Unit) {
     val count=value.toLongOrNull()?:0
+    val focus=LocalFocusManager.current
+    val keyboard=LocalSoftwareKeyboardController.current
     Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(8.dp)) {
         FilledTonalIconButton({onChange((count-100).coerceIn(1,100000).toString())},enabled=count>1,modifier=Modifier.size(48.dp)){Icon(Icons.Default.Remove,"تقليل عدد الجنود")}
-        OutlinedTextField(value,{onChange(it.filter(Char::isDigit).take(6))},Modifier.weight(1f).testTag("training-amount"),label={Text("عدد الجنود")},keyboardOptions=KeyboardOptions(keyboardType=KeyboardType.Number),singleLine=true)
+        OutlinedTextField(value,{onChange(it.filter(Char::isDigit).take(6))},Modifier.weight(1f).testTag("training-amount"),label={Text("عدد الجنود")},keyboardOptions=KeyboardOptions(keyboardType=KeyboardType.Number,imeAction=ImeAction.Done),keyboardActions=KeyboardActions(onDone={focus.clearFocus();keyboard?.hide()}),singleLine=true)
         FilledTonalIconButton({onChange((count+100).coerceIn(1,100000).toString())},enabled=count<100000,modifier=Modifier.size(48.dp)){Icon(Icons.Default.Add,"زيادة عدد الجنود")}
     }
     Slider(value=count.coerceIn(0,maximum).toFloat(),onValueChange={onChange(it.toLong().coerceAtLeast(1).toString())},valueRange=0f..maximum.coerceAtLeast(1).toFloat(),enabled=maximum>0,modifier=Modifier.fillMaxWidth().testTag("training-slider"))
