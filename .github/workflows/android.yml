@@ -16,8 +16,14 @@ jobs:
           cache: gradle
       - uses: actions/cache@v4
         with:
-          path: ~/.android/debug.keystore
-          key: frontier-beta-debug-signing-v1
+          path: .local-signing/debug.keystore
+          key: frontier-beta-explicit-signing-v2
+      - name: Ensure the cached beta signing key exists
+        run: |
+          mkdir -p .local-signing
+          if [ ! -f .local-signing/debug.keystore ]; then
+            keytool -genkeypair -noprompt -keystore .local-signing/debug.keystore -storetype JKS -storepass android -keypass android -alias androiddebugkey -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
+          fi
       - name: Make Gradle executable
         run: chmod +x gradlew
       - name: Prepare Gradle distribution with bounded network retries
@@ -69,10 +75,7 @@ jobs:
           arch: x86_64
           profile: pixel_6
           disable-animations: true
-          script: |
-            ./gradlew connectedDebugAndroidTest
-            mkdir -p app/build/device-screenshots
-            adb pull /sdcard/Pictures/FrontierQA app/build/device-screenshots/
+          script: bash tools/device_checks.sh
       - uses: actions/upload-artifact@v4
         if: always()
         with:

@@ -3,7 +3,7 @@
 This release focuses on the playable client experience. It keeps Core v30 command contracts and server authority.
 
 - The city and world fill the play area beneath a compact portrait HUD. Resources show compact counts; tap for exact inventory. Illustrated navigation, framed controls, pressed button feedback, contextual job tray and a castle development objective replace the previous app-like header.
-- Town framing shows more buildings at launch. Tapping a building's body or label opens its own artwork and upgrade costs, shortage indicators and duration. Pinch, pan, double-tap zoom, recenter, citizens, torch light and chimney smoke are supported.
+- Town framing shows more buildings at launch. Tapping a building's body or label opens its own artwork and upgrade costs, shortage indicators and duration. Pinch, pan, zoom controls, recenter, citizens, torch light and chimney smoke are supported.
 - Kingdom map uses original transparent beast/farm/lumber/mine artwork for server entities. Filters, a tap-to-travel overview, coordinate search, nearby targets sorted by distance, home and existing dispatch/march actions are connected.
 - Heroes have cinematic portraits, an animated selection transition, owned status, actual levels and skills. Army has illustrated classes, a T1–T5 unlock track, resource-aware maximum batch selection and visible costs. Shop uses original treasury art and retains server prices and order history.
 - Default gateway now matches the URL whose public health the user verified: `https://grows-warnings-rolling-volunteer.trycloudflare.com`. Saved custom gateway/session are preserved.
@@ -30,3 +30,7 @@ Subjects: silver mountain wolf; wheat farm with windmill; pine logging camp and 
 ## Validation
 
 Unit contract tests cover training costs, tier unlocks, the scarcest-resource batch cap, camera bounds/focus, release versions and command rejection semantics. Instrumentation exercises the actual kingdom screen with isolated synthetic documents; signed-in state stays false, so no test credentials or commands reach a server. These fixtures are test-only and never shipped as game state. Captures cover HUD/city, building requirements, world filters, heroes, army and shop. Existing launch and camera tests remain.
+
+## Updating from beta 0.3
+
+The previous signing cache pointed at a file that did not exist on the runner. Beta 0.4 explicitly generates and caches its signing file and directs Gradle to it. Its signer differs from the delivered beta 0.3, so Android requires uninstalling 0.3 before installing 0.4. Keep your account credentials and claim completed classic local campaigns first. Server city data survives; device-only campaign/queue pointers do not survive uninstall. GitHub caches can expire; production signing still requires durable release-key management.

@@ -90,16 +90,11 @@ fun TownBoard(levels:Map<String,Int>,buildLabel:String?,reduced:Boolean,onBuildi
     var camera by remember {mutableStateOf(MapCamera(500f,470f,1.35f))}
     val board=ImageBitmap.imageResource(R.drawable.town_board)
     val phase=scenePhase(reduced)
-    val buildingClick by rememberUpdatedState(onBuilding)
     BoxWithConstraints(Modifier.fillMaxSize().background(Color(0xFF253D31)).clipToBoundsCompat().testTag("town-board").pointerInput(Unit) {detectTransformGestures {centroid,pan,zoom,_->
             val w=size.width.toFloat();val h=size.height.toFloat();val base=w/1000f
             val z=camera.zoomAt(zoom,centroid.x-w/2,centroid.y-h/2,base,1000f)
             camera=z.pan(pan.x,pan.y,base*z.zoom,1000f)
-        }}.pointerInput(Unit) {detectTapGestures(onDoubleTap={camera=camera.copy(zoom=if(camera.zoom>2f)1.35f else 2.4f)},onTap={tap->
-            val scale=size.width/1000f*camera.zoom
-            val world=Offset(camera.x+(tap.x-size.width/2)/scale,camera.y+(tap.y-size.height/2)/scale)
-            townSpots.minByOrNull {hypot(it.x-world.x,it.y-45-world.y)}?.let {spot->if(hypot(spot.x-world.x,spot.y-45-world.y)<105f)buildingClick(spot.key)}
-        })}) {
+        }})
         val density=LocalDensity.current;val w=constraints.maxWidth.toFloat();val h=constraints.maxHeight.toFloat()
         val base=w/1000f;val scale=base*camera.zoom
         fun pos(x:Float,y:Float)=Offset(w/2+(x-camera.x)*scale,h/2+(y-camera.y)*scale)
@@ -128,7 +123,7 @@ fun TownBoard(levels:Map<String,Int>,buildLabel:String?,reduced:Boolean,onBuildi
         CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
             townSpots.forEach {spot->val p=pos(spot.x,spot.y)
                 if(p.x in -90f..w+90&&p.y in -100f..h+100) {
-                    Column(Modifier.absoluteOffset{IntOffset((p.x-with(density){45.dp.toPx()}).roundToInt(),(p.y-with(density){38.dp.toPx()}).roundToInt())}.width(90.dp).heightIn(min=66.dp).clip(RoundedCornerShape(12.dp)).clickable {onBuilding(spot.key)}.testTag("building-${spot.key}"),horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.Bottom) {
+                    Column(Modifier.absoluteOffset{IntOffset((p.x-with(density){50.dp.toPx()}).roundToInt(),(p.y-with(density){86.dp.toPx()}).roundToInt())}.width(100.dp).height(110.dp).clip(RoundedCornerShape(12.dp)).clickable {onBuilding(spot.key)}.testTag("building-${spot.key}"),horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.Bottom) {
                         Spacer(Modifier.height(28.dp))
                         Text(title(spot.key),Modifier.background(Ink.copy(.88f),RoundedCornerShape(topStart=6.dp,topEnd=6.dp)).padding(horizontal=8.dp,vertical=3.dp),fontSize=10.sp,color=Parchment,fontWeight=FontWeight.Bold,maxLines=1)
                         Text(levels[spot.key]?.let{"Lv. $it"}?:"…",Modifier.background(Emerald.copy(.96f),RoundedCornerShape(bottomStart=6.dp,bottomEnd=6.dp)).padding(horizontal=9.dp,vertical=2.dp),fontSize=10.sp,color=Gold)

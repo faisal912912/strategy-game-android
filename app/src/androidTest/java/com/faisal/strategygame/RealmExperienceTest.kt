@@ -48,6 +48,7 @@ class RealmExperienceTest {
     @Test fun cityHudBuildingDetailsAndDockWorkTogether() {
         val vm=fixture();launch(vm)
         compose.onNodeWithTag("building-castle").performClick()
+        compose.waitUntil(5000) {compose.onAllNodesWithText("متطلبات المستوى 9").fetchSemanticsNodes().isNotEmpty()}
         compose.onNodeWithText("متطلبات المستوى 9").assertExists()
         captureTestScreenshot(compose,"beta4-building")
         compose.onNodeWithText("إغلاق").performClick()

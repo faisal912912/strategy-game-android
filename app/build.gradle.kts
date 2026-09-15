@@ -21,6 +21,10 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
+    signingConfigs.getByName("debug") {
+        val betaKey = rootProject.file(".local-signing/debug.keystore")
+        if (betaKey.isFile) storeFile = betaKey
+    }
     buildTypes {
         release {
             isMinifyEnabled = true
