@@ -76,6 +76,7 @@ DECLARE n integer := 0; i integer; px integer; py integer; tile integer; v integ
  object_kind text; obj bigint; lv integer; resource text; monster text;
 BEGIN
  PERFORM pg_advisory_xact_lock(601906,s);
+ LOCK TABLE v12_world_cities,v15_world_resource_nodes,v16_world_monsters IN SHARE ROW EXCLUSIVE MODE;
  FOR i IN 1..4012 LOOP
   object_kind := CASE WHEN i<=1000 THEN 'city' WHEN i<=3200 THEN 'resource'
                WHEN i<=4000 THEN 'monster' ELSE 'landmark' END;

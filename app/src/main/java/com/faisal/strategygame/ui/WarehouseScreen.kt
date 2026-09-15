@@ -3,6 +3,8 @@ package com.faisal.strategygame.ui
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -14,8 +16,11 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.faisal.strategygame.*
@@ -29,6 +34,8 @@ fun WarehouseScreen(vm:FrontierViewModel,ask:(Command)->Unit) {
     var query by rememberSaveable {mutableStateOf("")}
     var selected by remember {mutableStateOf<JSONObject?>(null)}
     var showJobs by remember {mutableStateOf(false)}
+    val keyboard=LocalSoftwareKeyboardController.current
+    val focus=LocalFocusManager.current
     val items=vm.doc("/inventory").rows("items").filter{it.optLong("quantity")>0}
     val gear=vm.doc("/equipment").rows("equipment").filter{it.optBoolean("owned")}
     RoyalHeading("خزائن المملكة","المستودع","التسريعات والموارد والتجهيزات في مكان واحد")
@@ -41,7 +48,7 @@ fun WarehouseScreen(vm:FrontierViewModel,ask:(Command)->Unit) {
         }
     }
     ChoiceTabs(listOf("all" to "الكل","speedups" to "التسريعات","resources" to "الموارد","gear" to "التجهيزات","other" to "أخرى"),category){category=it}
-    OutlinedTextField(query,{query=it.take(60)},Modifier.fillMaxWidth().testTag("warehouse-search"),singleLine=true,label={Text("بحث في المستودع")},leadingIcon={Icon(Icons.Default.Search,null)})
+    OutlinedTextField(query,{query=it.take(60)},Modifier.fillMaxWidth().testTag("warehouse-search"),singleLine=true,label={Text("بحث في المستودع")},leadingIcon={Icon(Icons.Default.Search,null)},keyboardOptions=KeyboardOptions(imeAction=ImeAction.Search),keyboardActions=KeyboardActions(onSearch={keyboard?.hide();focus.clearFocus()}))
     if(category in listOf("all","resources") && query.isBlank()) {
         Text("الموارد المتاحة",color=Gold,fontWeight=FontWeight.Bold)
         listOf("food","wood","stone","gold").chunked(2).forEach {row->Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(8.dp)) {

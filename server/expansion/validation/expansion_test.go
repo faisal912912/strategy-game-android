@@ -11,17 +11,17 @@ import (
  "strings"
  "sync"
  "testing"
- "time"
  "github.com/jackc/pgx/v5/pgxpool"
 )
 
 // Adapter for Core v30 symbols. The installer compiles against the real Core before
 // deployment; these tests exercise the module against a disposable PostgreSQL database.
-type App struct {db *pgxpool.Pool}
+type App struct {db *pgxpool.Pool;disabledFeature string}
 type testClaims struct {PlayerID int64;ServerID int}
 type claimsKey struct{}
 func claims(r *http.Request)testClaims {v,_:=r.Context().Value(claimsKey{}).(testClaims);return v}
 func (a *App)v10Auth(h http.HandlerFunc)http.HandlerFunc{return h}
+func (a *App)v10FeatureEnabled(ctx context.Context,server int,feature string)bool{return a.disabledFeature!=feature}
 func v6Register(mux *http.ServeMux,path string,h http.HandlerFunc){mux.HandleFunc(path,h);mux.HandleFunc("/api/v1"+path,h)}
 func method(w http.ResponseWriter,r *http.Request,m string)bool{if r.Method!=m{w.WriteHeader(405);return false};return true}
 func writeJSON(w http.ResponseWriter,status int,value any){w.Header().Set("Content-Type","application/json");w.WriteHeader(status);_ = json.NewEncoder(w).Encode(value)}
@@ -126,5 +126,11 @@ func TestExpansion(t *testing.T) {
   if request(1,1,"/expansion/v1/state","method-test-key","{}").Code!=405{t.Fatal("read endpoint accepted POST")}
  })
  t.Run("missing_idempotency_key_rejected",func(t *testing.T){if request(1,1,"/expansion/v1/starter-claim","","{}").Code!=400{t.Fatal("missing key accepted")}})
- _=time.Second
+ t.Run("core_feature_switches_are_honored",func(t *testing.T){
+  app.disabledFeature="world"
+  if request(1,1,"/expansion/v1/claim-landmark","feature-gate-test",`{"landmark_id":4}`).Code!=503{t.Fatal("world gate bypassed")}
+  app.disabledFeature="shop"
+  if request(1,1,"/expansion/v1/speedup","feature-gate-test",`{"kind":"train","job_id":1001,"item_key":"frontier_speed_60","count":1}`).Code!=503{t.Fatal("inventory gate bypassed")}
+  app.disabledFeature=""
+ })
 }

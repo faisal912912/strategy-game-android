@@ -14,11 +14,19 @@ import (
 )
 
 func registerFrontierExpansionRoutes(mux *http.ServeMux, a *App) {
- v6Register(mux,"/expansion/v1/world",a.v10Auth(a.frontierWorld))
+ v6Register(mux,"/expansion/v1/world",a.frontierAuth("world",a.frontierWorld))
  v6Register(mux,"/expansion/v1/state",a.v10Auth(a.frontierState))
  for _, path := range []string{"speedup","claim-landmark","starter-claim"} {
-  v6Register(mux,"/expansion/v1/"+path,a.v10Auth(a.frontierCommand))
+  feature:="shop";if path=="claim-landmark"{feature="world"}
+  v6Register(mux,"/expansion/v1/"+path,a.frontierAuth(feature,a.frontierCommand))
  }
+}
+
+func (a *App) frontierAuth(feature string,next http.HandlerFunc)http.HandlerFunc {
+ return a.v10Auth(func(w http.ResponseWriter,r *http.Request){
+  if !a.v10FeatureEnabled(r.Context(),claims(r).ServerID,feature) {writeJSON(w,503,map[string]string{"error":"feature disabled","feature":feature});return}
+  next(w,r)
+ })
 }
 
 func (a *App) frontierWorld(w http.ResponseWriter,r *http.Request) {
@@ -96,7 +104,7 @@ func (a *App) frontierCommand(w http.ResponseWriter,r *http.Request) {
   } else {writeJSON(w,503,map[string]string{"error":"command could not be completed; retry safely"})};return
  }
  response,err=json.Marshal(value)
- if err==nil {_,err=tx.Exec(r.Context(),`INSERT INTO frontier_commands(player_id,command_key,request_hash,response) VALUES($1,$2,$3,$4)`,pc.PlayerID,key,hash,response)}
+ if err==nil {err=tx.QueryRow(r.Context(),`INSERT INTO frontier_commands(player_id,command_key,request_hash,response) VALUES($1,$2,$3,$4) RETURNING response`,pc.PlayerID,key,hash,response).Scan(&response)}
  if err==nil {err=tx.Commit(r.Context())}
  if err!=nil {writeJSON(w,503,map[string]string{"error":"command confirmation unavailable; retry safely"});return}
  writeJSON(w,200,json.RawMessage(response))

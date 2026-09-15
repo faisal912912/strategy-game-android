@@ -63,18 +63,27 @@ chmod 755 "$project_dir/gameserver001.next"
 mv "$project_dir/gameserver001.next" "$project_dir/gameserver001"
 services=(gameserver001)
 if systemctl is-active --quiet gameserver002; then services+=(gameserver002); fi
-if ! sudo systemctl restart "${services[@]}"; then
+restore_binary() {
  cp "$backup_dir/gameserver001" "$project_dir/gameserver001.rollback"
  mv "$project_dir/gameserver001.rollback" "$project_dir/gameserver001"
  cp "$backup_dir/main.go" "$project_dir/main.go"
+ if [ -f "$backup_dir/frontier_expansion.go" ]; then cp "$backup_dir/frontier_expansion.go" "$project_dir/frontier_expansion.go"; fi
  sudo systemctl restart "${services[@]}"
- echo 'Restart failed; previous binary restored. Additive data retained.' >&2
+ echo 'Previous binary restored. Additive data retained.' >&2
+}
+if ! sudo systemctl restart "${services[@]}"; then
+ restore_binary
  exit 1
 fi
 for attempt in 1 2 3 4 5; do
  if curl -fsS --max-time 4 http://127.0.0.1:8080/health >/dev/null; then break; fi
- if [ "$attempt" = 5 ]; then echo "Health check failed. Backup at $backup_dir" >&2; exit 1; fi
+ if [ "$attempt" = 5 ]; then restore_binary; echo "Health check failed. Backup at $backup_dir" >&2; exit 1; fi
  sleep 1
+done
+for port in 8080 8081; do
+ if [ "$port" = 8081 ] && [ "${#services[@]}" = 1 ]; then continue; fi
+ if ! code="$(curl -sS --max-time 5 -o /dev/null -w '%{http_code}' "http://127.0.0.1:$port/api/v1/expansion/v1/state")"; then restore_binary; exit 1; fi
+ if [ "$code" != 401 ]; then restore_binary; echo "Expansion auth route verification failed on $port ($code)" >&2; exit 1; fi
 done
 psql -v ON_ERROR_STOP=1 -Atqc "SELECT count(*) FROM frontier_npc_cities WHERE server_id=1" | python3 -c "import sys; assert sys.stdin.read().strip()=='1000'"
 echo 'World expansion installed: 1000 NPC cities, 2200 resources, 800 monsters, 12 landmarks.'

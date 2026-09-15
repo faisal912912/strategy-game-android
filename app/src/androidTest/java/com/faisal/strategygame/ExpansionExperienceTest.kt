@@ -47,6 +47,8 @@ class ExpansionExperienceTest {
         compose.onNodeWithText("حزمة غذاء").assertExists()
         compose.onNodeWithText("تسريع دقيقة").assertDoesNotExist()
         compose.onNodeWithTag("warehouse-search").performTextClearance()
+        compose.onNodeWithTag("warehouse-search").performImeAction()
+        captureTestScreenshot(compose,"beta6-warehouse-search")
         compose.onNodeWithText("التسريعات",useUnmergedTree=true).performClick()
         compose.onNodeWithText("حزمة غذاء").assertDoesNotExist()
         compose.onNodeWithText("تسريع دقيقة").assertExists()
