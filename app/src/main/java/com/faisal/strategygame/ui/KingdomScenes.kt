@@ -16,6 +16,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.AbsoluteAlignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
@@ -120,10 +121,11 @@ fun TownBoard(levels:Map<String,Int>,buildLabel:String?,reduced:Boolean,onBuildi
                 val p=pos(x,y);drawCircle(Gold.copy(.1f+.05f*sin(phase*40+i)),12f*scale,p);drawCircle(Color(0xFFFFD17C),2.3f*scale,p)
             }
         }
+        // Coordinates are physical: the parent Box must not mirror their origin in Arabic.
         CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
             townSpots.forEach {spot->val p=pos(spot.x,spot.y)
                 if(p.x in -90f..w+90&&p.y in -100f..h+100) {
-                    Column(Modifier.absoluteOffset{IntOffset((p.x-with(density){50.dp.toPx()}).roundToInt(),(p.y-with(density){86.dp.toPx()}).roundToInt())}.width(100.dp).height(110.dp).clip(RoundedCornerShape(12.dp)).clickable {onBuilding(spot.key)}.testTag("building-${spot.key}"),horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.Bottom) {
+                    Column(Modifier.align(AbsoluteAlignment.TopLeft).absoluteOffset{IntOffset((p.x-with(density){50.dp.toPx()}).roundToInt(),(p.y-with(density){86.dp.toPx()}).roundToInt())}.width(100.dp).height(110.dp).clip(RoundedCornerShape(12.dp)).clickable {onBuilding(spot.key)}.testTag("building-${spot.key}"),horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.Bottom) {
                         Spacer(Modifier.height(28.dp))
                         Text(title(spot.key),Modifier.background(Ink.copy(.88f),RoundedCornerShape(topStart=6.dp,topEnd=6.dp)).padding(horizontal=8.dp,vertical=3.dp),fontSize=10.sp,color=Parchment,fontWeight=FontWeight.Bold,maxLines=1)
                         Text(levels[spot.key]?.let{"Lv. $it"}?:"…",Modifier.background(Emerald.copy(.96f),RoundedCornerShape(bottomStart=6.dp,bottomEnd=6.dp)).padding(horizontal=9.dp,vertical=2.dp),fontSize=10.sp,color=Gold)
@@ -255,10 +257,11 @@ fun WorldBoard(camera:MapCamera,onCamera:(MapCamera)->Unit,pins:List<WorldPin>,r
             }
             pins.filter{it.kind=="hunt"}.forEach{p->drawCircle(Color(0xFFFFAE62).copy(.12f),with(density){30.dp.toPx()}*(.9f+.1f*sin(phase*30)),pos(p.x,p.y))}
         }
+        // Coordinates are physical: the parent Box must not mirror their origin in Arabic.
         CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
             pins.sortedBy{it.y}.forEach {pin->val p=pos(pin.x,pin.y);val width=if(pin.kind=="city") 98.dp else 80.dp
                 if(p.x in -100f..w+100&&p.y in -100f..h+100) {
-                    Column(Modifier.absoluteOffset{IntOffset((p.x-with(density){width.toPx()/2}).roundToInt(),(p.y-with(density){58.dp.toPx()}).roundToInt())}.width(width).clip(RoundedCornerShape(10.dp)).clickable{onPin(pin)}.testTag(pin.key),horizontalAlignment=Alignment.CenterHorizontally) {
+                    Column(Modifier.align(AbsoluteAlignment.TopLeft).absoluteOffset{IntOffset((p.x-with(density){width.toPx()/2}).roundToInt(),(p.y-with(density){58.dp.toPx()}).roundToInt())}.width(width).clip(RoundedCornerShape(10.dp)).clickable{onPin(pin)}.testTag(pin.key),horizontalAlignment=Alignment.CenterHorizontally) {
                         Image(painterResource(pinArt(pin)),pin.name,Modifier.size(if(pin.kind=="city") 90.dp else 70.dp).graphicsLayer {if(pin.kind=="hunt"){scaleY=1f+.015f*sin(phase*38);transformOrigin=TransformOrigin(.5f,1f)}},contentScale=ContentScale.Fit)
                         Text((if(pin.level>0) "${pin.level} • " else "")+pin.name,Modifier.background(Ink.copy(.92f),RoundedCornerShape(5.dp)).padding(horizontal=6.dp,vertical=3.dp),color=if(pin.kind=="city") Mint else Color.White,fontSize=10.sp,fontWeight=FontWeight.Bold,maxLines=1)
                     }

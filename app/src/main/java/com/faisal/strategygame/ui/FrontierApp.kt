@@ -11,6 +11,7 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -115,6 +116,8 @@ internal fun Kingdom(vm: FrontierViewModel) {
     var showJobs by remember { mutableStateOf(false) }
     var showResources by remember { mutableStateOf(false) }
     val scene=vm.tab in listOf("city","world")
+    val listState=rememberLazyListState()
+    LaunchedEffect(vm.tab) {listState.scrollToItem(0)}
     BackHandler(vm.tab!="city") { vm.selectTab("city") }
     val hud: @Composable ()->Unit = {
         Column {
@@ -133,7 +136,7 @@ internal fun Kingdom(vm: FrontierViewModel) {
             when(vm.tab) {
                 "city" -> TownScreen(vm,ask)
                 "world" -> KingdomMap(vm,ask)
-                else -> LazyColumn(Modifier.fillMaxSize(),contentPadding=PaddingValues(start=16.dp,end=16.dp,bottom=24.dp),verticalArrangement=Arrangement.spacedBy(12.dp)) {
+                else -> LazyColumn(Modifier.fillMaxSize(),state=listState,contentPadding=PaddingValues(start=16.dp,end=16.dp,bottom=24.dp),verticalArrangement=Arrangement.spacedBy(12.dp)) {
                     item {
                         Column(verticalArrangement=Arrangement.spacedBy(12.dp)) {
                             when(vm.tab) {

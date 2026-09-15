@@ -47,7 +47,9 @@ class RealmExperienceTest {
     }
     @Test fun cityHudBuildingDetailsAndDockWorkTogether() {
         val vm=fixture();launch(vm)
-        compose.onNodeWithTag("building-castle").performClick()
+        captureTestScreenshot(compose,"beta4-city-before-tap")
+        compose.onNodeWithTag("building-castle").assertIsDisplayed().performClick()
+        captureTestScreenshot(compose,"beta4-building-after-tap")
         compose.waitUntil(5000) {compose.onAllNodesWithText("متطلبات المستوى 9").fetchSemanticsNodes().isNotEmpty()}
         compose.onNodeWithText("متطلبات المستوى 9").assertExists()
         captureTestScreenshot(compose,"beta4-building")
@@ -55,7 +57,7 @@ class RealmExperienceTest {
         captureTestScreenshot(compose,"beta4-city")
         compose.onNodeWithTag("tab-world").performClick()
         compose.onNodeWithTag("kingdom-minimap").assertExists()
-        compose.onNodeWithTag("monster-1").assertExists()
+        compose.onNodeWithTag("monster-1").assertIsDisplayed()
         captureTestScreenshot(compose,"beta4-world")
         compose.onNodeWithText("الموارد",useUnmergedTree=true).performClick()
         compose.onNodeWithTag("monster-1").assertDoesNotExist()
