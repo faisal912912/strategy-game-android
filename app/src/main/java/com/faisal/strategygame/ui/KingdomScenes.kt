@@ -94,7 +94,7 @@ fun TownBoard(levels:Map<String,Int>,buildLabel:String?,reduced:Boolean,onBuildi
             val w=size.width.toFloat();val h=size.height.toFloat();val base=w/1000f
             val z=camera.zoomAt(zoom,centroid.x-w/2,centroid.y-h/2,base,1000f)
             camera=z.pan(pan.x,pan.y,base*z.zoom,1000f)
-        }})
+        }}) {
         val density=LocalDensity.current;val w=constraints.maxWidth.toFloat();val h=constraints.maxHeight.toFloat()
         val base=w/1000f;val scale=base*camera.zoom
         fun pos(x:Float,y:Float)=Offset(w/2+(x-camera.x)*scale,h/2+(y-camera.y)*scale)
