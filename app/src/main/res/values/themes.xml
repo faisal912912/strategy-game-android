@@ -1,9 +1,9 @@
 <resources>
-    <style name="Theme.StrategyGame" parent="android:style/Theme.Material.Light.NoActionBar">
+    <style name="Theme.StrategyGame.Base" parent="android:style/Theme.Material.Light.NoActionBar">
         <item name="android:fontFamily">sans</item>
         <item name="android:windowLightStatusBar">false</item>
-        <item name="android:windowLightNavigationBar">false</item>
         <item name="android:statusBarColor">#101812</item>
         <item name="android:navigationBarColor">#101812</item>
     </style>
+    <style name="Theme.StrategyGame" parent="Theme.StrategyGame.Base" />
 </resources>
