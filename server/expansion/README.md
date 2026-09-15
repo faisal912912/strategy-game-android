@@ -11,7 +11,14 @@
 
 ## التثبيت على أوبنتو
 
-فك الحزمة، ثم نفّذ من مجلدها كمستخدم تشغيل السيرفر المعتاد:
+للحصول على الملفات من المستودع على جهاز أوبنتو:
+
+```bash
+git clone --depth 1 https://github.com/faisal912912/strategy-game-android.git frontier-world-update
+cd frontier-world-update/server/expansion
+```
+
+ثم نفّذ كمستخدم تشغيل السيرفر المعتاد:
 
 ```bash
 bash install.sh

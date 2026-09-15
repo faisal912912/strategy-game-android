@@ -138,8 +138,10 @@ fun TownBoard(levels:Map<String,Int>,buildLabel:String?,reduced:Boolean,showLabe
         // Coordinates are physical: the parent Box must not mirror their origin in Arabic.
         CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
             townSpots.forEach {spot->val p=pos(spot.x,spot.y)
-                if(p.x in -90f..w+90&&p.y in -100f..h+100) {
-                    Column(Modifier.align(AbsoluteAlignment.TopLeft).absoluteOffset{IntOffset((p.x-with(density){50.dp.toPx()}).roundToInt(),(p.y-with(density){86.dp.toPx()}).roundToInt())}.width(100.dp).height(110.dp).clip(RoundedCornerShape(12.dp)).clickable {onBuilding(spot.key)}.testTag("building-${spot.key}").semantics{contentDescription=title(spot.key)},horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.Bottom) {
+                val targetWidth=with(density){((if(spot.key=="castle") 230f else 165f)*scale).toDp()}.coerceIn(80.dp,250.dp)
+                val targetHeight=with(density){((if(spot.key=="castle") 270f else 170f)*scale).toDp()}.coerceIn(90.dp,280.dp)
+                if(p.x in -300f..w+300&&p.y in -400f..h+400) {
+                    Column(Modifier.align(AbsoluteAlignment.TopLeft).absoluteOffset{IntOffset((p.x-with(density){targetWidth.toPx()/2}).roundToInt(),(p.y-with(density){(targetHeight-24.dp).toPx()}).roundToInt())}.width(targetWidth).height(targetHeight).clip(RoundedCornerShape(12.dp)).clickable {onBuilding(spot.key)}.testTag("building-${spot.key}").semantics{contentDescription=title(spot.key)},horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.Bottom) {
                         Row(Modifier.clip(RoundedCornerShape(6.dp)).background(Ink.copy(.88f)).border(.7.dp,Bronze.copy(.8f),RoundedCornerShape(6.dp)).padding(horizontal=5.dp,vertical=3.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(4.dp)) {
                             if(showLabels) Text(title(spot.key),fontSize=11.sp,color=Parchment,fontWeight=FontWeight.Bold,maxLines=1,modifier=Modifier.weight(1f,false))
                             Text(levels[spot.key]?.toString()?:"…",Modifier.background(Emerald,RoundedCornerShape(3.dp)).padding(horizontal=4.dp,vertical=1.dp),fontSize=11.sp,color=Gold,fontWeight=FontWeight.Bold)
@@ -317,13 +319,13 @@ fun WorldBoard(camera:MapCamera,onCamera:(MapCamera)->Unit,pins:List<WorldPin>,r
         }
         // Coordinates are physical: the parent Box must not mirror their origin in Arabic.
         CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
-            visible.forEach {pin->val p=pos(pin.x,pin.y);val iconScale=camera.zoom.coerceIn(.55f,1.4f);val width=(if(pin.kind=="city") 98.dp else 80.dp)*iconScale
+            visible.forEach {pin->val p=pos(pin.x,pin.y);val iconScale=camera.zoom.coerceIn(.55f,1.7f);val width=(if(pin.kind=="city") 68.dp else 56.dp)*iconScale
                 key(pin.key) {
-                    Column(Modifier.align(AbsoluteAlignment.TopLeft).absoluteOffset{IntOffset((p.x-with(density){width.toPx()/2}).roundToInt(),(p.y-with(density){58.dp.toPx()}).roundToInt())}.width(width).clip(RoundedCornerShape(10.dp)).clickable{onPin(pin)}.testTag(pin.key),horizontalAlignment=Alignment.CenterHorizontally) {
-                        if(pin.kind=="landmark") LandmarkArt(pin.data.optString("kind"),Modifier.size(76.dp*iconScale))
-                        else Image(painterResource(pinArt(pin)),pin.name,Modifier.size((if(pin.kind=="city") 90.dp else 70.dp)*iconScale).graphicsLayer {if(pin.kind=="hunt"){scaleY=1f+.015f*sin(phase*38);transformOrigin=TransformOrigin(.5f,1f)}},contentScale=ContentScale.Fit)
+                    Column(Modifier.align(AbsoluteAlignment.TopLeft).absoluteOffset{IntOffset((p.x-with(density){width.toPx()/2}).roundToInt(),(p.y-with(density){((if(pin.kind=="city") 40.dp else 30.dp)*iconScale).toPx()}).roundToInt())}.width(width).clip(RoundedCornerShape(10.dp)).clickable{onPin(pin)}.testTag(pin.key),horizontalAlignment=Alignment.CenterHorizontally) {
+                        if(pin.kind=="landmark") LandmarkArt(pin.data.optString("kind"),Modifier.size(52.dp*iconScale))
+                        else Image(painterResource(pinArt(pin)),pin.name,Modifier.size((if(pin.kind=="city") 54.dp else 40.dp)*iconScale).graphicsLayer {if(pin.kind=="hunt"){scaleY=1f+.015f*sin(phase*38);transformOrigin=TransformOrigin(.5f,1f)}},contentScale=ContentScale.Fit)
                         if(camera.zoom>=.8f)Text((if(pin.level>0&&pin.kind!="landmark") "${pin.level} • " else "")+pin.name,Modifier.background(Ink.copy(.92f),RoundedCornerShape(5.dp)).padding(horizontal=6.dp,vertical=3.dp),color=if(pin.kind=="landmark") Gold else if(pin.kind=="city") Mint else Color.White,fontSize=10.sp,fontWeight=FontWeight.Bold,maxLines=1)
-                        if(pin.key.startsWith("npc-")&&camera.zoom>=1.2f)Text("⚔ ${compact(pin.data.optLong("power"))}",color=Gold,fontSize=9.sp,modifier=Modifier.background(Ink.copy(.9f),RoundedCornerShape(4.dp)).padding(horizontal=4.dp))
+                        if(pin.key.startsWith("npc-")&&camera.zoom>=1.8f)Text("⚔ ${compact(pin.data.optLong("power"))}",color=Gold,fontSize=9.sp,modifier=Modifier.background(Ink.copy(.9f),RoundedCornerShape(4.dp)).padding(horizontal=4.dp))
                     }
                 }
             }

@@ -133,7 +133,7 @@ internal fun Kingdom(vm: FrontierViewModel) {
         }
     }
     Scaffold(modifier=Modifier.imePadding(),containerColor=Ink,contentWindowInsets=WindowInsets(0,0,0,0),snackbarHost={SnackbarHost(snackbar)},
-        topBar={if(!scene)hud()},bottomBar={Column {ActivityStrip(vm){showJobs=true};RoyalDock(vm.tab,vm.reduceMotion){vm.selectTab(it)}}}) { padding ->
+        topBar={if(!scene)hud()},bottomBar={Column {ActivityStrip(vm){showJobs=true};RoyalDock(if(vm.tab=="warehouse") "more" else vm.tab,vm.reduceMotion){vm.selectTab(it)}}}) { padding ->
         Box(Modifier.padding(padding).fillMaxSize()) {
             val currentTab=vm.tab
             screenStates.SaveableStateProvider(currentTab) {
