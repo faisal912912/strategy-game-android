@@ -27,4 +27,10 @@ class GameRulesTest {
         assertEquals(c.y+40/2f,z.y+40/(2*z.zoom),.001f)
         assertEquals(4f,z.zoomAt(100f,0f,0f,2f,499f).zoom,.001f)
     }
+    @org.junit.Test fun maximumBatchUsesScarcestResourceAndServerCap() {
+        org.junit.Assert.assertEquals(2L,maxTrainable(5,10000,10000,20))
+        org.junit.Assert.assertEquals(0L,maxTrainable(1,0,10000,10000))
+        org.junit.Assert.assertEquals(100000L,maxTrainable(1,Long.MAX_VALUE,Long.MAX_VALUE,Long.MAX_VALUE))
+        org.junit.Assert.assertEquals(0L,maxTrainable(2,-1,500,500))
+    }
 }

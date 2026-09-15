@@ -49,14 +49,12 @@ fun HeroesScreen(vm: FrontierViewModel, ask: (Command)->Unit) {
     var gear by rememberSaveable { mutableStateOf(false) }
     val commanders=vm.doc("/commanders").rows("commanders")
     val current=commanders.firstOrNull {it.optString("key")==selected} ?: commanders.firstOrNull()
-    Row(horizontalArrangement=Arrangement.spacedBy(8.dp)) {
-        FilterChip(!gear,{gear=false},label={Text("قاعة الأبطال")})
-        FilterChip(gear,{gear=true},label={Text("تجهيزات الجيش")})
-    }
+    RoyalHeading("قادة المملكة","قاعة الأبطال","اختر قائدك وطوّر مهاراته وجهّز جيشك")
+    ChoiceTabs(listOf("heroes" to "الأبطال","gear" to "دار الحدادة"),if(gear) "gear" else "heroes"){gear=it=="gear"}
     if(!gear) {
         if(current==null) { Text("جارٍ تحميل الأبطال…",color=Mint); return }
         val key=current.optString("key"); val owned=current.optBoolean("owned")
-        ArtworkBanner(heroArt(key),heroName(key),if(owned) "قائد في مملكتك • المستوى ${current.optInt("level")}" else "قائد متاح للتجنيد")
+        HeroShowcase(key,current.optInt("level"),owned,vm.reduceMotion)
         Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(8.dp)) {
             commanders.forEach { c -> val k=c.optString("key")
                 Column(Modifier.weight(1f).clip(RoundedCornerShape(12.dp)).border(if(k==key) 2.dp else 1.dp,if(k==key) Gold else Slate,RoundedCornerShape(12.dp)).clickable {selected=k}.padding(3.dp),horizontalAlignment=Alignment.CenterHorizontally) {
@@ -114,27 +112,29 @@ fun HeroesScreen(vm: FrontierViewModel, ask: (Command)->Unit) {
 fun MilitaryScreen(vm: FrontierViewModel,ask:(Command)->Unit) {
     var type by rememberSaveable {mutableStateOf("infantry")};var tier by rememberSaveable {mutableIntStateOf(1)}
     var amount by rememberSaveable {mutableStateOf("100")}; var support by rememberSaveable {mutableStateOf(false)}
-    Row(horizontalArrangement=Arrangement.spacedBy(8.dp)) {FilterChip(!support,{support=false},label={Text("تدريب القوات")});FilterChip(support,{support=true},label={Text("العلاج والأبحاث")})}
+    RoyalHeading("قوة المملكة","معسكر الجيش","درّب القوات وافتح فئات أعلى بتطوير المباني")
+    ChoiceTabs(listOf("train" to "التدريب","support" to "العلاج والأبحاث"),if(support) "support" else "train"){support=it=="support"}
     if(support) {ArmySupport(vm,ask);return}
-    ArtworkBanner(troopArt(type),title(type),"متاح في المدينة: ${num(vm.me.obj("army").optLong(type))} جندي")
-    Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(8.dp)) {listOf("infantry","cavalry","archers").forEach { t ->
-        FilterChip(type==t,{type=t},label={Text(title(t))},modifier=Modifier.weight(1f))
-    } }
+    TroopShowcase(type,tier,vm.me.obj("army").optLong(type))
+    ChoiceTabs(listOf("infantry" to "المشاة","cavalry" to "الفرسان","archers" to "الرماة"),type){type=it}
     val building=trainingBuilding(type)
     val level=vm.doc("/game/buildings").rows("buildings").firstOrNull{it.optString("type")==building}?.optInt("level") ?: 0
     Panel {
         Text("مسار تطوير ${title(type)}",fontWeight=FontWeight.Bold,color=Gold)
         Text("${title(building)} • المستوى الحالي $level",style=MaterialTheme.typography.bodySmall)
-        Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(5.dp)) {(1..5).forEach {t ->
-            FilterChip(tier==t,{tier=t},label={Text("T$t",fontSize=12.sp)},modifier=Modifier.weight(1f))
-        } }
+        TierTrack(tier,level){tier=it}
         TierRequirements(tier,level,building)
         val count=amount.toLongOrNull()?:0
         val cost=if(count in 1..100000) trainingCost(tier,count) else null
+        val available=vm.me.obj("resources")
+        val maximum=maxTrainable(tier,available.optLong("food"),available.optLong("wood"),available.optLong("gold"))
+        Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(6.dp)) {
+            listOf("100" to 100L,"1,000" to 1000L,"الأقصى" to maximum).forEach{(label,value)->OutlinedButton({amount=value.toString()},modifier=Modifier.weight(1f),enabled=value>0){Text(label,fontSize=11.sp)}}
+        }
         OutlinedTextField(amount,{amount=it.filter(Char::isDigit).take(6)},Modifier.fillMaxWidth(),label={Text("عدد الجنود • 1 إلى 100,000")},keyboardOptions=KeyboardOptions(keyboardType=KeyboardType.Number),singleLine=true)
         val res=vm.me.obj("resources");val unlocked=level>=tierBuildingLevel(tier)
         val enough=cost!=null&&res.optLong("food")>=cost.food&&res.optLong("wood")>=cost.wood&&res.optLong("gold")>=cost.gold
-        cost?.let {Text("${num(it.food)} غذاء · ${num(it.wood)} خشب · ${num(it.gold)} ذهب",color=Mint);Text("مدة التدريب: ${countdown(it.seconds*1000,0)}",style=MaterialTheme.typography.bodySmall)}
+        cost?.let {ResourceCosts(mapOf("food" to it.food,"wood" to it.wood,"gold" to it.gold),res);Text("مدة التدريب: ${countdown(it.seconds*1000,0)}",color=Mint,style=MaterialTheme.typography.bodySmall)}
         val queue=vm.jobs.any{it.kind=="train"}
         ActionButton(when { !unlocked->"يتطلب ${title(building)} مستوى ${tierBuildingLevel(tier)}";queue->"التدريب الحالي لم يُستلم";!enough->"تحقق من العدد والموارد";else->"تدريب ${num(count)} • T$tier"},vm.canAct&&unlocked&&enough&&!queue) {
             ask(Command("تدريب ${num(count)} ${title(type)} T$tier","/game/training/start",json("type" to type,"tier" to tier,"amount" to count),"train",details="${num(cost!!.food)} غذاء · ${num(cost.wood)} خشب · ${num(cost.gold)} ذهب\nالمدة ${countdown(cost.seconds*1000,0)}"))
@@ -170,10 +170,9 @@ private fun grantsDescription(p:JSONObject):String {
 fun ShopScreen(vm:FrontierViewModel,ask:(Command)->Unit) {
     var section by rememberSaveable {mutableStateOf("offers")}
     val wallet=vm.doc("/commerce/v2/wallet");val balance=wallet.optLong("total_gems")
-    Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(Brush.linearGradient(listOf(Color(0xFF223E66),Color(0xFF172333)))).padding(22.dp)) {
-        Column {Icon(Icons.Default.Diamond,null,tint=Gold,modifier=Modifier.size(44.dp));Text("خزينة المملكة",fontSize=25.sp,fontWeight=FontWeight.Bold);Text("${num(balance)} جوهرة",fontSize=32.sp,color=Gold,fontWeight=FontWeight.Black);Text("منها ${num(wallet.optLong("bonus_gems"))} جواهر مكافآت",color=Mint,fontSize=12.sp)}
-    }
-    Row(horizontalArrangement=Arrangement.spacedBy(6.dp)) {listOf("offers" to "الباقات","topup" to "الشحن","orders" to "مشترياتي").forEach{(key,label)->FilterChip(section==key,{section=key},label={Text(label)})}}
+    RoyalHeading("تجارة المملكة","السوق الملكي","باقات الموارد وسجل مشترياتك")
+    TreasuryBanner(balance,wallet.optLong("bonus_gems"))
+    ChoiceTabs(listOf("offers" to "الباقات","topup" to "الشحن","orders" to "مشترياتي"),section){section=it}
     if(section=="orders") {
         val orders=vm.doc("/shop/v3/orders").rows("orders")
         if(orders.isEmpty()) Panel {Text("لا توجد مشتريات بعد.",color=Mint)}
@@ -185,7 +184,7 @@ fun ShopScreen(vm:FrontierViewModel,ask:(Command)->Unit) {
         if(products.isEmpty()) Text("لا توجد باقات متاحة حاليًا.",color=Mint)
         products.forEach {p ->val price=p.optLong("price_gems");val grants=grantsDescription(p)
             Panel {
-                Row(verticalAlignment=Alignment.CenterVertically) {Icon(if(topup) Icons.Default.Diamond else Icons.Default.Redeem,null,tint=Gold,modifier=Modifier.size(42.dp));Spacer(Modifier.width(12.dp));Text(productName(p),fontSize=21.sp,fontWeight=FontWeight.Bold,color=Gold)}
+                Row(verticalAlignment=Alignment.CenterVertically) {Image(painterResource(R.drawable.treasure_chest),null,Modifier.size(64.dp));Spacer(Modifier.width(12.dp));Text(productName(p),fontSize=21.sp,fontWeight=FontWeight.Bold,color=Gold)}
                 if(grants.isNotEmpty()) Text(grants,color=Mint)
                 if(topup) {
                     Text("${num(p.optLong("paid_gems_grant"))} جوهرة + ${num(p.optLong("bonus_gems_grant"))} هدية")

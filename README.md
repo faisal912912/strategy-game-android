@@ -1,3 +1,7 @@
+## Beta 0.4 — Kingdom interface overhaul
+
+A scene-first portrait client with a compact HUD, original illustrated map targets, interactive minimap/filter/nearby search, contextual building costs, cinematic heroes and a T1–T5 army progression track. See [release scope and validation](docs/BETA_0_4.md). The current default test gateway is `https://grows-warnings-rolling-volunteer.trycloudflare.com`; change it under connection settings when the temporary tunnel URL changes. Existing saved gateway and account data are preserved.
+
 # حُدود المملكة — Android online beta 0.3
 
 An Arabic, portrait Android strategy client for the existing Core v30 server. Accounts, resources, troops and outcomes come from the server. Beta 0.3 adds an illustrated, explorable kingdom and progression screens. See [release scope](docs/BETA_0_3.md) and [art direction](docs/ART_DIRECTION.md).

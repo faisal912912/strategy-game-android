@@ -55,7 +55,7 @@ class SceneInteractionTest {
 }
 
 internal fun captureTestScreenshot(compose:ComposeContentTestRule,name:String) {
-        val bitmap=compose.onRoot().captureToImage().asAndroidBitmap()
+        val bitmap=compose.onAllNodes(isRoot()).onLast().captureToImage().asAndroidBitmap()
         val resolver=InstrumentationRegistry.getInstrumentation().targetContext.contentResolver
         val uri=resolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI,ContentValues().apply{
             put(MediaStore.Images.Media.DISPLAY_NAME,"$name.png")

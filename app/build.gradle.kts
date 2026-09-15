@@ -11,10 +11,10 @@ android {
         applicationId = "com.faisal.strategygame"
         minSdk = 26
         targetSdk = 35
-        versionCode = 3
-        versionName = "0.3.0"
+        versionCode = 4
+        versionName = "0.4.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        buildConfigField("String", "SERVER_BASE_URL", "\"https://broker-craft-mariah-enormous.trycloudflare.com/\"")
+        buildConfigField("String", "SERVER_BASE_URL", "\"https://grows-warnings-rolling-volunteer.trycloudflare.com/\"")
     }
 
     compileOptions {

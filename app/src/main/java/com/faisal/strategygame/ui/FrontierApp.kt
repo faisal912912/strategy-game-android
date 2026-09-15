@@ -2,6 +2,10 @@ package com.faisal.strategygame.ui
 
 import androidx.compose.animation.*
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.draw.shadow
+import androidx.compose.foundation.shape.CircleShape
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.*
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -54,7 +58,7 @@ private val labels = mapOf(
 )
 fun title(key: String) = labels[key] ?: key.replace('_',' ')
 fun num(n: Long): String = NumberFormat.getIntegerInstance(Locale.US).format(n)
-fun countdown(end: Long, now: Long): String { val s=((end-now+999)/1000).coerceAtLeast(0); return if(s==0L) "جاهز" else "%02d:%02d".format(s/60,s%60) }
+fun countdown(end: Long, now: Long): String { val s=((end-now+999)/1000).coerceAtLeast(0); return when {s==0L->"جاهز";s>=86400->"${s/86400} ي • %02d:%02d".format(s%86400/3600,s%3600/60);s>=3600->"%02d:%02d:%02d".format(s/3600,s%3600/60,s%60);else->"%02d:%02d".format(s/60,s%60)} }
 
 @Composable
 fun FrontierApp(vm: FrontierViewModel = viewModel()) {
@@ -64,7 +68,7 @@ fun FrontierApp(vm: FrontierViewModel = viewModel()) {
         while(true) { vm.tick(); if(ticks++%20==0) vm.refresh(); delay(1000) }
     } }
     CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
-        if (!vm.signedIn) Gate(vm) else Kingdom(vm)
+        Surface(color=Ink,contentColor=Parchment) { if (!vm.signedIn) Gate(vm) else Kingdom(vm) }
     }
 }
 @Composable
@@ -79,7 +83,7 @@ private fun Gate(vm: FrontierViewModel) {
         Column(Modifier.padding(24.dp), verticalArrangement=Arrangement.spacedBy(14.dp)) {
             Text("حُدود المملكة", fontSize=34.sp, fontWeight=FontWeight.Black, color=Gold)
             Text("ابنِ مدينتك. جهّز جيشك. اكتشف العالم.", color=Mint)
-            Text("المملكة الأولى • بيتا 0.3", style=MaterialTheme.typography.labelLarge)
+            Text("المملكة الأولى • بيتا 0.4", color=Parchment, style=MaterialTheme.typography.labelLarge)
             Row(horizontalArrangement=Arrangement.spacedBy(8.dp)) {
                 FilterChip(!register,{register=false},label={Text("دخول")},enabled=!vm.busy)
                 FilterChip(register,{register=true},label={Text("حساب جديد")},enabled=!vm.busy)
@@ -102,70 +106,63 @@ private fun Gate(vm: FrontierViewModel) {
     }
 }
 @Composable
-private fun Kingdom(vm: FrontierViewModel) {
+internal fun Kingdom(vm: FrontierViewModel) {
     var confirmation by remember { mutableStateOf<Command?>(null) }
     var detail by remember { mutableStateOf<Pair<String,String>?>(null) }
     val snackbar = remember { SnackbarHostState() }
     LaunchedEffect(vm.message) { vm.message?.let { snackbar.showSnackbar(it); vm.clearMessage() } }
     val ask: (Command)->Unit = { confirmation=it }
-    Scaffold(containerColor=Ink, snackbarHost={SnackbarHost(snackbar)}, topBar={
-        Column(Modifier.statusBarsPadding().padding(horizontal=16.dp,vertical=8.dp)) {
-            Row(verticalAlignment=Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) {
-                    Text(vm.me.optString("username"),fontWeight=FontWeight.Bold,fontSize=19.sp)
-                    Text("المملكة 1  •  قوة ${num(vm.me.optLong("power"))}",color=Gold,style=MaterialTheme.typography.labelMedium)
-                }
-                IconButton({vm.refresh()},enabled=!vm.busy&&!vm.refreshing) { Icon(Icons.Default.Refresh,"تحديث المدينة",tint=Mint) }
-            }
-            Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween) {
-                val resources=vm.me.obj("resources")
-                listOf("food","wood","stone","gold").forEach { k -> Column(horizontalAlignment=Alignment.CenterHorizontally) {
-                    Text(num(resources.optLong(k)),fontWeight=FontWeight.Bold,fontSize=14.sp,color=if(k=="gold") Gold else Color.White)
-                    Text(title(k),style=MaterialTheme.typography.labelSmall,color=Color(0xFF9FB3C2))
-                } }
-            }
-            if(vm.busy||vm.refreshing) LinearProgressIndicator(Modifier.fillMaxWidth().padding(top=8.dp))
-        }
-    }, bottomBar={
-        NavigationBar(containerColor=Slate) {
-            val tabs=listOf(Triple("city","المدينة",Icons.Default.Castle),Triple("world","المملكة",Icons.Default.Public),Triple("heroes","الأبطال",Icons.Default.Person),Triple("army","الجيش",Icons.Default.Shield),Triple("shop","المتجر",Icons.Default.Redeem),Triple("more","المزيد",Icons.Default.Menu))
-            tabs.forEach { (key,label,icon) -> NavigationBarItem(vm.tab==key,{if(!vm.busy) vm.selectTab(key)},icon={Icon(icon,label)},label={Text(label,fontSize=10.sp)},alwaysShowLabel=true) }
-        }
-    }) { padding ->
-        Column(Modifier.padding(padding).fillMaxSize()) {
+    var showJobs by remember { mutableStateOf(false) }
+    var showResources by remember { mutableStateOf(false) }
+    val scene=vm.tab in listOf("city","world")
+    BackHandler(vm.tab!="city") { vm.selectTab("city") }
+    val hud: @Composable ()->Unit = {
+        Column {
+            RealmHud(vm.me.optString("username"),vm.me.optLong("power"),vm.me.obj("resources"),
+                vm.me.obj("city").optInt("level",1),vm.busy||vm.refreshing,{vm.selectTab("more")},{showResources=true},{vm.refresh()})
             vm.error?.let { Notice(it,true) }
             vm.pending?.let { c -> Row(Modifier.fillMaxWidth().background(Slate).padding(horizontal=12.dp),verticalAlignment=Alignment.CenterVertically) {
                 Text("بانتظار تأكيد: ${c.title}",Modifier.weight(1f),fontSize=12.sp,color=Gold)
                 TextButton({vm.retryPending()},enabled=!vm.busy&&!vm.refreshing){Text("تحقق")}
             } }
-            if(vm.jobs.isNotEmpty()) {
-                var expanded by rememberSaveable {mutableStateOf(false)}
-                Row(Modifier.fillMaxWidth().background(Slate).clickable{expanded=!expanded}.padding(horizontal=14.dp,vertical=7.dp),verticalAlignment=Alignment.CenterVertically) {
-                    Icon(Icons.Default.Schedule,null,tint=Mint,modifier=Modifier.size(18.dp));Spacer(Modifier.width(8.dp))
-                    Text("${vm.jobs.size} أعمال • ${vm.jobs.first().label}",Modifier.weight(1f),fontSize=11.sp)
-                    Text(countdown(vm.jobs.first().ends,vm.now),color=Gold,fontSize=12.sp);Icon(Icons.Default.ExpandMore,"تفاصيل الأعمال")
-                }
-                if(expanded) Box(Modifier.heightIn(max=220.dp).verticalScroll(rememberScrollState())) {Jobs(vm,ask)}
-            }
+        }
+    }
+    Scaffold(containerColor=Ink,contentWindowInsets=WindowInsets(0,0,0,0),snackbarHost={SnackbarHost(snackbar)},
+        topBar={if(!scene)hud()},bottomBar={RoyalDock(vm.tab){vm.selectTab(it)}}) { padding ->
+        Box(Modifier.padding(padding).fillMaxSize()) {
             when(vm.tab) {
                 "city" -> TownScreen(vm,ask)
                 "world" -> KingdomMap(vm,ask)
-                else -> LazyColumn(Modifier.fillMaxSize(),contentPadding=PaddingValues(16.dp),verticalArrangement=Arrangement.spacedBy(12.dp)) {
+                else -> LazyColumn(Modifier.fillMaxSize(),contentPadding=PaddingValues(start=16.dp,end=16.dp,bottom=24.dp),verticalArrangement=Arrangement.spacedBy(12.dp)) {
                     item {
                         Column(verticalArrangement=Arrangement.spacedBy(12.dp)) {
                             when(vm.tab) {
                                 "army" -> MilitaryScreen(vm,ask)
                                 "heroes" -> HeroesScreen(vm,ask)
                                 "shop" -> ShopScreen(vm,ask)
-                                "missions" -> Journal(vm,ask) {a,b->detail=a to b}
-                                else -> {ActionButton("المهام والسجل") {vm.selectTab("missions")};More(vm,ask)}
+                                "missions" -> {RoyalHeading("سجل المملكة","المهام والمكافآت");Journal(vm,ask){a,b->detail=a to b}}
+                                else -> {RoyalHeading("مجلس الحاكم","ديوان المملكة","التحالف والحقيبة والإعدادات");ActionButton("المهام والسجل") {vm.selectTab("missions")};More(vm,ask)}
                             }
                         }
                     }
                 }
             }
+            if(scene)Box(Modifier.align(Alignment.TopCenter)){hud()}
+            if(vm.jobs.isNotEmpty()) {
+                Row(Modifier.align(if(scene) Alignment.TopStart else Alignment.BottomCenter).then(if(scene) Modifier.statusBarsPadding().padding(top=116.dp,start=10.dp) else Modifier.padding(8.dp)).clip(RoundedCornerShape(10.dp)).background(Ink.copy(.95f)).border(1.dp,Bronze,RoundedCornerShape(10.dp)).clickable{showJobs=true}.padding(8.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(6.dp)) {
+                    Icon(Icons.Default.Construction,null,tint=Gold,modifier=Modifier.size(19.dp))
+                    Text("${vm.jobs.size} • "+countdown(vm.jobs.first().ends,vm.now),color=Parchment,fontSize=11.sp)
+                    Icon(Icons.Default.ExpandMore,"تفاصيل الأعمال",tint=Mint,modifier=Modifier.size(16.dp))
+                }
+            }
         }
     }
+    if(showJobs) AlertDialog(onDismissRequest={showJobs=false},title={Text("طابور أعمال المملكة")},text={Column(Modifier.verticalScroll(rememberScrollState())) {Jobs(vm){showJobs=false;ask(it)}}},confirmButton={TextButton({showJobs=false}){Text("إغلاق")}})
+    if(showResources) AlertDialog(onDismissRequest={showResources=false},title={Text("مخزون المدينة")},text={Column(verticalArrangement=Arrangement.spacedBy(14.dp)){
+        listOf("food","wood","stone","gold").forEach{k->Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(10.dp)) {
+            Icon(resourceIcon(k),null,tint=Gold);Text(title(k),Modifier.weight(1f));Text(num(vm.me.obj("resources").optLong(k)),color=Mint,fontWeight=FontWeight.Bold)
+        }}
+    }},confirmButton={TextButton({showResources=false}){Text("إغلاق")}})
     confirmation?.let { command -> AlertDialog(onDismissRequest={confirmation=null},title={Text(command.title)},text={Text(commandDescription(command))},
         confirmButton={TextButton({confirmation=null;vm.submit(command)},enabled=vm.canAct) {Text("تأكيد الأمر")}},dismissButton={TextButton({confirmation=null}) {Text("إلغاء")}}) }
     detail?.let { (heading,body) -> AlertDialog(onDismissRequest={detail=null},title={Text(heading)},text={Text(body,Modifier.verticalScroll(rememberScrollState()))},confirmButton={TextButton({detail=null}){Text("إغلاق")}}) }
@@ -185,7 +182,7 @@ private fun commandDescription(c: Command): String = if(c.details.isNotEmpty()) 
 }
 @Composable
 fun Panel(content: @Composable ColumnScope.()->Unit) {
-    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(Slate).border(1.dp,Color.White.copy(.06f),RoundedCornerShape(18.dp)).padding(16.dp),verticalArrangement=Arrangement.spacedBy(10.dp),content=content)
+    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(Brush.linearGradient(listOf(Color(0xFF263C48),Slate))).border(1.dp,Bronze.copy(.45f),RoundedCornerShape(18.dp)).padding(16.dp),verticalArrangement=Arrangement.spacedBy(10.dp),content=content)
 }
 @Composable
 private fun Notice(text: String, failure: Boolean=false) {
@@ -196,7 +193,7 @@ fun ActionButton(text: String, enabled: Boolean=true, action: ()->Unit) {
     val interaction=remember { MutableInteractionSource() }; val pressed by interaction.collectIsPressedAsState()
     val scale by animateFloatAsState(if(pressed) .97f else 1f,label="button press")
     val haptics=LocalHapticFeedback.current
-    Button({haptics.performHapticFeedback(HapticFeedbackType.LongPress);action()},Modifier.fillMaxWidth().heightIn(min=48.dp).scale(scale),enabled=enabled,interactionSource=interaction,shape=RoundedCornerShape(12.dp)) { Text(text,fontWeight=FontWeight.Bold) }
+    Button({haptics.performHapticFeedback(HapticFeedbackType.LongPress);action()},Modifier.fillMaxWidth().heightIn(min=50.dp).scale(scale).shadow(if(enabled) 4.dp else 0.dp,RoundedCornerShape(10.dp)).background(Brush.verticalGradient(if(enabled) listOf(Color(0xFFF2D58C),Color(0xFFBB8D41)) else listOf(Slate,Slate)),RoundedCornerShape(10.dp)).border(1.dp,if(enabled) Gold else Bronze.copy(.25f),RoundedCornerShape(10.dp)),enabled=enabled,interactionSource=interaction,shape=RoundedCornerShape(10.dp),colors=ButtonDefaults.buttonColors(containerColor=Color.Transparent,contentColor=Ink,disabledContainerColor=Color.Transparent,disabledContentColor=Parchment.copy(.35f))) { Text(text,fontWeight=FontWeight.Bold) }
 }
 @Composable
 private fun Section(heading: String, subtitle: String="") { Text(heading,fontSize=23.sp,fontWeight=FontWeight.Bold,color=Gold);if(subtitle.isNotEmpty()) Text(subtitle,color=Color(0xFF9FB3C2),style=MaterialTheme.typography.bodySmall) }

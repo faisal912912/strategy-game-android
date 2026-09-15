@@ -17,7 +17,7 @@ import javax.crypto.SecretKey
 import javax.crypto.spec.GCMParameterSpec
 import javax.net.ssl.HttpsURLConnection
 
-const val DEFAULT_GATEWAY = "https://broker-craft-mariah-enormous.trycloudflare.com"
+const val DEFAULT_GATEWAY = "https://grows-warnings-rolling-volunteer.trycloudflare.com"
 class ApiFailure(val status: Int, message: String) : Exception(message)
 
 fun secureOrigin(raw: String): String {

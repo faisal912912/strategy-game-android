@@ -19,3 +19,9 @@ data class MapCamera(val x: Float, val y: Float, val zoom: Float = 1f) {
             (y+focusY/baseScale*(1/zoom-1/z)).coerceIn(0f,extent),z)
     }
 }
+
+/** Upper bound for the selected training batch using the current resource snapshot. */
+fun maxTrainable(tier:Int,food:Long,wood:Long,gold:Long):Long {
+    val unit=trainingCost(tier,1)
+    return minOf(100000L,food.coerceAtLeast(0)/unit.food,wood.coerceAtLeast(0)/unit.wood,gold.coerceAtLeast(0)/unit.gold)
+}
